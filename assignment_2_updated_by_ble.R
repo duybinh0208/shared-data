@@ -474,10 +474,6 @@ print(agreed_adr)
 # =====================================================
 # WHAT-IF & ROI ANALYSIS FOR CANCELLATION
 # =====================================================
-
-# Average revenue per booking
-avg_revenue <- mean(hotel_bookings_nodup$adr * hotel_bookings_nodup$total_nights, na.rm = TRUE)
-
 print("=== ROI Analysis for Cancellation ===")
 
 # Potential revenue (all bookings, canceled or not)
