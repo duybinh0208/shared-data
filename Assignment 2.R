@@ -1,9 +1,17 @@
-# Part A: Data preprocessing
-
-# Install library
-library(imputeTS)
+# Import library
 library(dplyr)
+library(tidyverse)
+library(imputeTS)
+library(ggplot2)
+library(corrplot)
+library(gridExtra)
+library(scales)
+library(car)
+library(broom)
+library(MASS)
 
+
+# Part A: Data pre-processing
 # Read data
 hotel_bookings <- read.csv("hotel_bookings.csv")
 
@@ -53,7 +61,7 @@ View(hotel_bookings_numeric_scaled)
 
 
 # Visualize distribution
-library(ggplot2)
+
 
 # 1. Distribution of cancellations
 ggplot(hotel_bookings_nodup, aes(x = factor(is_canceled,
@@ -153,10 +161,6 @@ ggplot(hotel_bookings_nodup, aes(x = total_nights)) +
   coord_cartesian(xlim = c(0, 30))
 
 # PART B
-# Install library
-library(tidyverse)
-library(corrplot)
-
 # Correlation
 
 # Compute correlations with cancellation
@@ -286,12 +290,6 @@ print(p_adr)
 
 
 # Regression Analysis
-library(tidyverse)
-library(car)
-library(broom)
-library(MASS)
-library(gridExtra)
-
 # ===== Cancellation: REGRESSION =====
 # Convert required_car_parking_spaces to binary yes/no
 hotel_bookings_numeric_raw$required_car_parking_spaces <- ifelse(
@@ -472,9 +470,6 @@ print(agreed_adr)
 
 
 # PART C: Financial impact of actionable drivers
-library(tidyverse) # For data analysis
-library(scales) # For formatting dollar amounts
-
 # === Cancellation: Understand current situation
 # Current cancellation rate
 baseline_cancel_rate <- mean(hotel_bookings_nodup$is_canceled)
