@@ -48,8 +48,8 @@ hotel_bookings_numeric_raw <- hotel_bookings_nodup[sapply(hotel_bookings_nodup, 
 View(hotel_bookings_numeric_raw)
 
 # Normalize numeric columns for analysis
-hotel_bookings_numeric <- as.data.frame(scale(hotel_bookings_numeric_raw))
-View(hotel_bookings_numeric)
+hotel_bookings_numeric_scaled <- as.data.frame(scale(hotel_bookings_numeric_raw))
+View(hotel_bookings_numeric_scaled)
 
 
 # Visualize distribution
@@ -76,7 +76,7 @@ ggplot(hotel_bookings_nodup, aes(x = adr)) +
     x = "ADR (€)", y = "Count"
   )
 
-ggplot(hotel_bookings_numeric, aes(x = adr)) +
+ggplot(hotel_bookings_numeric_scaled, aes(x = adr)) +
   geom_histogram(bins = 50, fill = "orange", color = "black") +
   labs(
     title = "Distribution of ADR (Normalized)",
@@ -161,8 +161,8 @@ library(corrplot)
 
 # Compute correlations with cancellation
 correlations_cancel <- cor(
-  hotel_bookings_numeric[, -which(names(hotel_bookings_numeric) == "is_canceled")], # (exclude is_cancelled itself)
-  hotel_bookings_numeric$is_canceled,
+  hotel_bookings_numeric_scaled[, -which(names(hotel_bookings_numeric_scaled) == "is_canceled")], # (exclude is_cancelled itself)
+  hotel_bookings_numeric_scaled$is_canceled,
   use = "complete.obs"
 )
 
@@ -221,8 +221,8 @@ print(p_cancel)
 
 # Compute correlations with ADR
 correlations_adr <- cor(
-  hotel_bookings_numeric[, -which(names(hotel_bookings_numeric) == "adr")], # (exclude adr itself)
-  hotel_bookings_numeric$adr,
+  hotel_bookings_numeric_scaled[, -which(names(hotel_bookings_numeric_scaled) == "adr")], # (exclude adr itself)
+  hotel_bookings_numeric_scaled$adr,
   use = "complete.obs"
 )
 
@@ -340,7 +340,7 @@ print(top_10_impact)
 
 # ===== ADR: REGRESSION (numeric-only predictors) =====
 # 1) Full model adr
-full_model_adr <- lm(adr ~ ., data = hotel_bookings_numeric)
+full_model_adr <- lm(adr ~ ., data = hotel_bookings_numeric_scaled)
 
 # Display model summary adr
 cat("=== FULL MODEL SUMMARY ===\n")
@@ -379,7 +379,7 @@ cat("Full Model AIC:", AIC(full_model_adr), "\n")
 cat("Stepwise Model AIC:", AIC(step_model_adr), "\n")
 
 # Calculate standardized coefficients for comparison
-std_model_adr <- lm(adr ~ ., data = hotel_bookings_numeric)
+std_model_adr <- lm(adr ~ ., data = hotel_bookings_numeric_scaled)
 
 # Extract standardized coefficients
 std_coef_adr <- data.frame(
