@@ -6,17 +6,15 @@ library(dplyr)
 
 # Read data
 hotel_bookings <- read.csv("hotel_bookings.csv")
-data.frame(hotel_bookings)
-View(hotel_bookings)
 
 # Check if there is duplication
-any(duplicated(hotel_bookings))
-sum(duplicated(hotel_bookings))
+total_dup_rows <- sum(duplicated(hotel_bookings))
+print(sprintf("Total dup rows detected = %s", total_dup_rows))
 
 # Remove duplication
 hotel_bookings_nodup <- distinct(hotel_bookings)
-sum(duplicated(hotel_bookings_nodup))
-
+total_dup_rows <- sum(duplicated(hotel_bookings_nodup))
+print(sprintf("Total dup rows after dedup = %s, data are good now", total_dup_rows))
 
 # Check if there are any abnormal/missing data
 summary(hotel_bookings_nodup)
