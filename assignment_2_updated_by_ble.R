@@ -335,7 +335,7 @@ print(top_10_impact)
 
 
 
-# ===== ADR: REGRESSION (numeric-only predictors) =====
+# ===== ADR: REGRESSION =====
 # 1) Full model adr
 full_model_adr <- lm(adr ~ ., data = hotel_bookings_numeric_scaled)
 
@@ -470,32 +470,9 @@ print(agreed_adr)
 
 
 # PART C: Financial impact of actionable drivers
-# === Cancellation: Understand current situation
-# Current cancellation rate
-baseline_cancel_rate <- mean(hotel_bookings_nodup$is_canceled)
-print(paste("Overall cancellation rate:", round(baseline_cancel_rate * 100, 2), "%"))
-
-# --- 1. Total Special Requests ---
-cancel_rate_requests <- aggregate(is_canceled ~ total_of_special_requests,
-  data = hotel_bookings_nodup, mean
-)
-print("Cancellation rate by number of special requests:")
-print(cancel_rate_requests)
-
-# What-if: Compare 0 vs >=3 requests
-avg_cancel_low_req <- mean(subset(hotel_bookings_nodup, total_of_special_requests == 0)$is_canceled)
-avg_cancel_high_req <- mean(subset(hotel_bookings_nodup, total_of_special_requests >= 3)$is_canceled)
-expected_reduction_requests <- avg_cancel_low_req - avg_cancel_high_req
-print(paste(
-  "What-if: Encouraging >=3 special requests reduces cancellations by ~",
-  round(expected_reduction_requests * 100, 2), "% points"
-))
-
-# --- 2. Is Repeated Guest ---
-
 
 # =====================================================
-# ROI Analysis for Cancellation
+# WHAT-IF & ROI ANALYSIS FOR CANCELLATION
 # =====================================================
 
 # Average revenue per booking
@@ -547,23 +524,25 @@ investment_changes <- nrow(hotel_bookings_nodup) * 0.15 * 15
 ROI_changes <- (expected_savings_changes - investment_changes) / investment_changes * 100
 
 # -----------------------
-# 3. Adults (Room Occupancy Policy)
+# 3. Adults (Solo/Couple Focus Policy)
 # -----------------------
-cancel_few_adults <- mean(subset(hotel_bookings_nodup, adults <= 1)$is_canceled)
-cancel_multi_adults <- mean(subset(hotel_bookings_nodup, adults > 1)$is_canceled)
+cancel_solo_couple <- mean(subset(hotel_bookings_nodup, adults <= 2)$is_canceled)
+cancel_groups <- mean(subset(hotel_bookings_nodup, adults > 2)$is_canceled)
 
-improvement_adults <- cancel_few_adults - cancel_multi_adults
+# Improvement is the reduction in cancellations when targeting solos/couples
+improvement_adults <- cancel_groups - cancel_solo_couple
 expected_savings_adults <- improvement_adults * sum(potential_revenue, na.rm = TRUE)
 
-# Assume $20 incentive cost per booking to encourage 2+ adult stays (10% adoption)
+# Assume $20 marketing cost per booking to promote solo/couple offers (10% adoption)
 investment_adults <- nrow(hotel_bookings_nodup) * 0.1 * 20
 ROI_adults <- (expected_savings_adults - investment_adults) / investment_adults * 100
+
 
 # -----------------------
 # ROI Summary
 # -----------------------
 roi_summary <- data.frame(
-  Factor = c("Special Requests", "Booking Changes", "Adults (Room Policy)"),
+  Factor = c("Special Requests", "Booking Changes", "Adults (Solo/Couple Focus)"),
   CancelRateDiff = round(c(improvement_requests, improvement_changes, improvement_adults) * 100, 2),
   Expected_Savings = round(c(expected_savings_requests, expected_savings_changes, expected_savings_adults), 0),
   Investment = round(c(investment_requests, investment_changes, investment_adults), 0),
