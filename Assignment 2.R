@@ -1,55 +1,55 @@
 # Part A: Data preprocessing
 
-#Install library
+# Install library
 library(imputeTS)
 library(dplyr)
 
-#Read data
-hotel_bookings<- read.csv("hotel_bookings.csv")
+# Read data
+hotel_bookings <- read.csv("hotel_bookings.csv")
 data.frame(hotel_bookings)
 View(hotel_bookings)
 
-#Check if there is duplication
+# Check if there is duplication
 any(duplicated(hotel_bookings))
 sum(duplicated(hotel_bookings))
 
-#Remove duplication
+# Remove duplication
 hotel_bookings_nodup <- distinct(hotel_bookings)
 sum(duplicated(hotel_bookings_nodup))
 
 
-#Check if there are any abnormal/missing data
+# Check if there are any abnormal/missing data
 summary(hotel_bookings_nodup)
 
-#Replace N/A children with 0
+# Replace N/A children with 0
 hotel_bookings_nodup$children[is.na(hotel_bookings_nodup$children)] <- 0
 
-#Replace adult = 0 with median (not use average as decimal doesn't make sense for person)
+# Replace adult = 0 with median (not use average as decimal doesn't make sense for person)
 hotel_bookings_nodup$adults[hotel_bookings_nodup$adults == 0] <- median(hotel_bookings_nodup$adults[hotel_bookings_nodup$adults > 0], na.rm = TRUE)
 
 # Remove invalid records with adr < 0 OR not cancelled but adr = 0
 hotel_bookings_nodup <- hotel_bookings_nodup[
   !(
-    (hotel_bookings_nodup$is_canceled == 0 & hotel_bookings_nodup$adr == 0)  # not cancelled but ADR = 0
-    | (hotel_bookings_nodup$adr < 0)                                         # negative ADR
+    (hotel_bookings_nodup$is_canceled == 0 & hotel_bookings_nodup$adr == 0) # not cancelled but ADR = 0
+    | (hotel_bookings_nodup$adr < 0) # negative ADR
   ),
 ]
 
 View(hotel_bookings_nodup)
 
-#Remove outlier
+# Remove outlier
 adr_bounds <- quantile(hotel_bookings_nodup$adr, probs = c(0.025, 0.975), na.rm = TRUE)
 
 hotel_bookings_nodup <- hotel_bookings_nodup[
-  hotel_bookings_nodup$adr >= adr_bounds[1] & hotel_bookings_nodup$adr <= adr_bounds[2], 
+  hotel_bookings_nodup$adr >= adr_bounds[1] & hotel_bookings_nodup$adr <= adr_bounds[2],
 ]
 
 
-#Create data frame that only contain numeric columns
+# Create data frame that only contain numeric columns
 hotel_bookings_numeric_raw <- hotel_bookings_nodup[sapply(hotel_bookings_nodup, is.numeric)]
 View(hotel_bookings_numeric_raw)
 
-#Normalize numeric columns for analysis
+# Normalize numeric columns for analysis
 hotel_bookings_numeric <- as.data.frame(scale(hotel_bookings_numeric_raw))
 View(hotel_bookings_numeric)
 
@@ -58,47 +58,58 @@ View(hotel_bookings_numeric)
 library(ggplot2)
 
 # 1. Distribution of cancellations
-ggplot(hotel_bookings_nodup, aes(x = factor(is_canceled, 
-                                            levels = c(0, 1), 
-                                            labels = c("Active", "Cancelled")))) +
+ggplot(hotel_bookings_nodup, aes(x = factor(is_canceled,
+  levels = c(0, 1),
+  labels = c("Active", "Cancelled")
+))) +
   geom_bar(fill = "steelblue") +
-  labs(x = "Reservation Type", y = "Count", 
-       title = "Distribution of Active vs Cancelled Reservations")
+  labs(
+    x = "Reservation Type", y = "Count",
+    title = "Distribution of Active vs Cancelled Reservations"
+  )
 
 
 # 2. ADR distribution
 
 ggplot(hotel_bookings_nodup, aes(x = adr)) +
   geom_histogram(bins = 50, fill = "orange", color = "black") +
-  labs(title = "Distribution of ADR (Raw Values)",
-       x = "ADR (€)", y = "Count")
+  labs(
+    title = "Distribution of ADR (Raw Values)",
+    x = "ADR (€)", y = "Count"
+  )
 
 ggplot(hotel_bookings_numeric, aes(x = adr)) +
   geom_histogram(bins = 50, fill = "orange", color = "black") +
-  labs(title = "Distribution of ADR (Normalized)",
-       x = "ADR (€)", y = "Count")
+  labs(
+    title = "Distribution of ADR (Normalized)",
+    x = "ADR (€)", y = "Count"
+  )
 
 
-boxplot(hotel_bookings_nodup$adr, 
-        main="Distribution of ADR (Boxplot)",
-        ylab="ADR (€)",
-        col="lightblue",
-        outline=TRUE)  # Show outlier points
+boxplot(hotel_bookings_nodup$adr,
+  main = "Distribution of ADR (Boxplot)",
+  ylab = "ADR (€)",
+  col = "lightblue",
+  outline = TRUE
+) # Show outlier points
 
 # 3. Hotel types
 # Compute percentages directly from hotel_bookings_nodup
 hotel_type_dist <- hotel_bookings_nodup %>%
   count(hotel) %>%
-  mutate(perc = round(n / sum(n) * 100, 1),
-         label = paste0(perc, "%"))
+  mutate(
+    perc = round(n / sum(n) * 100, 1),
+    label = paste0(perc, "%")
+  )
 
 # Plot with percentages
 ggplot(hotel_type_dist, aes(x = "", y = n, fill = hotel)) +
   geom_bar(stat = "identity", width = 1) +
   coord_polar("y", start = 0) +
-  geom_text(aes(label = label), 
-            position = position_stack(vjust = 0.5), 
-            color = "white", size = 5) +
+  geom_text(aes(label = label),
+    position = position_stack(vjust = 0.5),
+    color = "white", size = 5
+  ) +
   labs(title = "Distribution of Bookings by Hotel Type", x = "", y = "") +
   theme_void() +
   theme(legend.title = element_blank())
@@ -110,8 +121,10 @@ ggplot(hotel_bookings_nodup, aes(x = market_segment)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 # 5. Bookings by month
-ggplot(hotel_bookings_nodup, 
-       aes(x = factor(arrival_date_month, levels = month.name))) +
+ggplot(
+  hotel_bookings_nodup,
+  aes(x = factor(arrival_date_month, levels = month.name))
+) +
   geom_bar(fill = "skyblue") +
   labs(title = "Bookings by Arrival Month") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
@@ -123,10 +136,10 @@ ggplot(hotel_bookings_nodup, aes(x = lead_time)) +
   labs(title = "Distribution of Lead Time")
 
 # 7. Create total nights column
-hotel_bookings_nodup$total_nights <- hotel_bookings_nodup$stays_in_weekend_nights + 
+hotel_bookings_nodup$total_nights <- hotel_bookings_nodup$stays_in_weekend_nights +
   hotel_bookings_nodup$stays_in_week_nights
 
-#For active bookings, there must be at least 1 total nights, even checkout in same date
+# For active bookings, there must be at least 1 total nights, even checkout in same date
 hotel_bookings_nodup <- hotel_bookings_nodup %>%
   mutate(
     total_nights = ifelse(is_canceled == 0 & total_nights == 0, 1, total_nights)
@@ -135,12 +148,14 @@ hotel_bookings_nodup <- hotel_bookings_nodup %>%
 # Histogram of total nights
 ggplot(hotel_bookings_nodup, aes(x = total_nights)) +
   geom_histogram(binwidth = 1, fill = "purple", color = "black") +
-  labs(title = "Distribution of Total Nights Stayed", 
-       x = "Total Nights", y = "Count") +
-coord_cartesian(xlim = c(0, 30))
+  labs(
+    title = "Distribution of Total Nights Stayed",
+    x = "Total Nights", y = "Count"
+  ) +
+  coord_cartesian(xlim = c(0, 30))
 
-#PART B
-#Install library
+# PART B
+# Install library
 library(tidyverse)
 library(corrplot)
 
@@ -148,7 +163,7 @@ library(corrplot)
 
 # Compute correlations with cancellation
 correlations_cancel <- cor(
-  hotel_bookings_numeric[, -which(names(hotel_bookings_numeric) == "is_canceled")],  #(exclude is_cancelled itself)
+  hotel_bookings_numeric[, -which(names(hotel_bookings_numeric) == "is_canceled")], # (exclude is_cancelled itself)
   hotel_bookings_numeric$is_canceled,
   use = "complete.obs"
 )
@@ -169,32 +184,46 @@ cat("Top 10 Factors Correlated with Cancellations:\n")
 print(top_10_cancel)
 
 # Visualization: Bar plot of top 10 factors correlated with cancellations
-p_cancel <- ggplot(top_10_cancel,
-                   aes(x = reorder(variable, abs(correlation)),
-                       y = correlation,
-                       fill = correlation > 0)) +
+p_cancel <- ggplot(
+  top_10_cancel,
+  aes(
+    x = reorder(variable, abs(correlation)),
+    y = correlation,
+    fill = correlation > 0
+  )
+) +
   geom_bar(stat = "identity") +
   coord_flip() +
-  scale_fill_manual(values = c("FALSE" = "coral", "TRUE" = "steelblue"),
-                    labels = c("Negative", "Positive"),
-                    name = "Correlation Type") +
-  labs(title = "Top 10 Factors Correlated with Cancellations",
-       x = "Variables",
-       y = "Correlation Coefficient",
-       subtitle = "Ordered by absolute correlation strength") +
+  scale_fill_manual(
+    values = c("FALSE" = "coral", "TRUE" = "steelblue"),
+    labels = c("Negative", "Positive"),
+    name = "Correlation Type"
+  ) +
+  labs(
+    title = "Top 10 Factors Correlated with Cancellations",
+    x = "Variables",
+    y = "Correlation Coefficient",
+    subtitle = "Ordered by absolute correlation strength"
+  ) +
   theme_minimal() +
-  theme(plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
-        plot.subtitle = element_text(hjust = 0.5)) +
-  geom_text(aes(label = round(correlation, 3),
-                hjust = ifelse(correlation > 0, -0.1, 1.1)),
-            size = 3.5)
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5)
+  ) +
+  geom_text(
+    aes(
+      label = round(correlation, 3),
+      hjust = ifelse(correlation > 0, -0.1, 1.1)
+    ),
+    size = 3.5
+  )
 
 print(p_cancel)
 
 
-# Compute correlations with ADR 
+# Compute correlations with ADR
 correlations_adr <- cor(
-  hotel_bookings_numeric[, -which(names(hotel_bookings_numeric) == "adr")], #(exclude adr itself)
+  hotel_bookings_numeric[, -which(names(hotel_bookings_numeric) == "adr")], # (exclude adr itself)
   hotel_bookings_numeric$adr,
   use = "complete.obs"
 )
@@ -223,29 +252,43 @@ top_10_adr_plot <- top_10_adr %>%
     )
   )
 
-p_adr <- ggplot(top_10_adr_plot,
-                aes(x = reorder(variable, abs(correlation)),
-                    y = correlation,
-                    fill = corr_sign)) +
+p_adr <- ggplot(
+  top_10_adr_plot,
+  aes(
+    x = reorder(variable, abs(correlation)),
+    y = correlation,
+    fill = corr_sign
+  )
+) +
   geom_col() +
   coord_flip() +
-  scale_fill_manual(values = c(Negative = "coral", Positive = "steelblue"),
-                    name = "Correlation Type") +  # <- no drop=FALSE
-  labs(title = "Top 10 Factors Correlated with ADR",
-       x = "Variables",
-       y = "Correlation Coefficient",
-       subtitle = "Ordered by absolute correlation strength") +
+  scale_fill_manual(
+    values = c(Negative = "coral", Positive = "steelblue"),
+    name = "Correlation Type"
+  ) + # <- no drop=FALSE
+  labs(
+    title = "Top 10 Factors Correlated with ADR",
+    x = "Variables",
+    y = "Correlation Coefficient",
+    subtitle = "Ordered by absolute correlation strength"
+  ) +
   theme_minimal() +
-  theme(plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
-        plot.subtitle = element_text(hjust = 0.5)) +
-  geom_text(aes(label = round(correlation, 3),
-                hjust = ifelse(correlation > 0, -0.1, 1.1)),
-            size = 3.5)
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5)
+  ) +
+  geom_text(
+    aes(
+      label = round(correlation, 3),
+      hjust = ifelse(correlation > 0, -0.1, 1.1)
+    ),
+    size = 3.5
+  )
 
 print(p_adr)
 
 
-#Regression Analysis
+# Regression Analysis
 library(tidyverse)
 library(car)
 library(broom)
@@ -259,21 +302,23 @@ hotel_bookings_numeric_raw$required_car_parking_spaces <- ifelse(
 )
 
 
-#Convert is_canceled to factor directly in the dataset
-hotel_bookings_numeric_raw$is_canceled <- factor(hotel_bookings_numeric_raw$is_canceled, 
-                                                 levels = c(0, 1))
+# Convert is_canceled to factor directly in the dataset
+hotel_bookings_numeric_raw$is_canceled <- factor(hotel_bookings_numeric_raw$is_canceled,
+  levels = c(0, 1)
+)
 # Logistic regression (all predictors)
 
 
-logit_model <- glm(is_canceled ~ ., 
-                   data = hotel_bookings_numeric_raw, 
-                   family = binomial)
+logit_model <- glm(is_canceled ~ .,
+  data = hotel_bookings_numeric_raw,
+  family = binomial
+)
 
 # Model summary (coefficients in log-odds)
 summary(logit_model)
 
 
-# Odds ratios 
+# Odds ratios
 odds_ratios <- exp(coef(logit_model))
 
 # Create a simple dataframe with just coefficients and odds ratios
@@ -283,8 +328,8 @@ impact_df <- data.frame(
   odds_ratio  = exp(summary(logit_model)$coefficients[, "Estimate"]),
   p_value     = summary(logit_model)$coefficients[, "Pr(>|z|)"]
 ) %>%
-  filter(variable != "(Intercept)") %>%  # Remove intercept
-  arrange(desc(abs(coefficient)))  # Sort by absolute coefficient value
+  filter(variable != "(Intercept)") %>% # Remove intercept
+  arrange(desc(abs(coefficient))) # Sort by absolute coefficient value
 
 # Get top 10
 top_10_impact <- impact_df %>% head(10)
@@ -320,7 +365,7 @@ print(vif_df_adr)
 
 # Identify variables with high multicollinearity (VIF > 5)
 high_vif_adr <- vif_df_adr %>% filter(VIF > 5)
-if(nrow(high_vif_adr) > 0) {
+if (nrow(high_vif_adr) > 0) {
   cat("\nVariables with high multicollinearity (VIF > 5):\n")
   print(high_vif_adr)
 }
@@ -353,24 +398,33 @@ print(head(std_coef_adr, 10))
 
 # Visualization: Standardized coefficients (effect size) for ADR
 std_coef_plot_adr <- head(std_coef_adr, 10)
-p2 <- ggplot(std_coef_plot_adr, aes(x = reorder(variable, abs_std_coef_adr), 
-                                y = std_coefficient,
-                                fill = std_coefficient > 0)) +
+p2 <- ggplot(std_coef_plot_adr, aes(
+  x = reorder(variable, abs_std_coef_adr),
+  y = std_coefficient,
+  fill = std_coefficient > 0
+)) +
   geom_bar(stat = "identity") +
   coord_flip() +
-  scale_fill_manual(values = c("FALSE" = "coral", "TRUE" = "steelblue"),
-                    labels = c("Negative", "Positive"),
-                    name = "Effect Direction") +
-  labs(title = "Top 10 Most Important Factors for ADR (Standardized Coefficients)",
-       subtitle = "Larger absolute values indicate stronger effects",
-       x = "Variable",
-       y = "Standardized Coefficient") +
+  scale_fill_manual(
+    values = c("FALSE" = "coral", "TRUE" = "steelblue"),
+    labels = c("Negative", "Positive"),
+    name = "Effect Direction"
+  ) +
+  labs(
+    title = "Top 10 Most Important Factors for ADR (Standardized Coefficients)",
+    subtitle = "Larger absolute values indicate stronger effects",
+    x = "Variable",
+    y = "Standardized Coefficient"
+  ) +
   theme_minimal() +
-  theme(plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
-        plot.subtitle = element_text(hjust = 0.5)) +
-  geom_text(aes(label = round(std_coefficient, 3)), 
-            hjust = ifelse(std_coef_plot_adr$std_coefficient > 0, -0.1, 1.1),
-            size = 3.5)
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5)
+  ) +
+  geom_text(aes(label = round(std_coefficient, 3)),
+    hjust = ifelse(std_coef_plot_adr$std_coefficient > 0, -0.1, 1.1),
+    size = 3.5
+  )
 
 print(p2)
 
@@ -381,7 +435,7 @@ print("=== FEATURE SELECTION: CORRELATION vs REGRESSION ===")
 
 # ---- CANCELLATION ----
 top10_corr_cancel <- head(cor_df_cancel$variable, 10)
-top10_reg_cancel  <- head(impact_df$variable, 10)
+top10_reg_cancel <- head(impact_df$variable, 10)
 
 # Intersection, then take top 5
 agreed_cancel <- intersect(top10_corr_cancel, top10_reg_cancel)[1:5]
@@ -404,7 +458,7 @@ print("=== FEATURE SELECTION: ADR (Correlation vs Regression) ===")
 top10_corr_adr <- head(cor_df_adr$variable, 10)
 
 # Take top 10 by regression standardized coefficients
-top10_reg_adr  <- head(std_coef_adr$variable, 10)
+top10_reg_adr <- head(std_coef_adr$variable, 10)
 
 # Intersection, then top 5
 agreed_adr <- intersect(top10_corr_adr, top10_reg_adr)[1:5]
@@ -420,18 +474,19 @@ print(agreed_adr)
 
 
 
-#PART C: Financial impact of actionable drivers
-library(tidyverse)  # For data analysis
-library(scales)     # For formatting dollar amounts
+# PART C: Financial impact of actionable drivers
+library(tidyverse) # For data analysis
+library(scales) # For formatting dollar amounts
 
-#=== Cancellation: Understand current situation
+# === Cancellation: Understand current situation
 # Current cancellation rate
 baseline_cancel_rate <- mean(hotel_bookings_nodup$is_canceled)
-print(paste("Overall cancellation rate:", round(baseline_cancel_rate*100, 2), "%"))
+print(paste("Overall cancellation rate:", round(baseline_cancel_rate * 100, 2), "%"))
 
 # --- 1. Total Special Requests ---
-cancel_rate_requests <- aggregate(is_canceled ~ total_of_special_requests, 
-                                  data = hotel_bookings_nodup, mean)
+cancel_rate_requests <- aggregate(is_canceled ~ total_of_special_requests,
+  data = hotel_bookings_nodup, mean
+)
 print("Cancellation rate by number of special requests:")
 print(cancel_rate_requests)
 
@@ -439,8 +494,10 @@ print(cancel_rate_requests)
 avg_cancel_low_req <- mean(subset(hotel_bookings_nodup, total_of_special_requests == 0)$is_canceled)
 avg_cancel_high_req <- mean(subset(hotel_bookings_nodup, total_of_special_requests >= 3)$is_canceled)
 expected_reduction_requests <- avg_cancel_low_req - avg_cancel_high_req
-print(paste("What-if: Encouraging >=3 special requests reduces cancellations by ~",
-            round(expected_reduction_requests*100, 2), "% points"))
+print(paste(
+  "What-if: Encouraging >=3 special requests reduces cancellations by ~",
+  round(expected_reduction_requests * 100, 2), "% points"
+))
 
 # --- 2. Is Repeated Guest ---
 
@@ -467,9 +524,9 @@ lost_revenue_total <- sum(potential_revenue[hotel_bookings_nodup$is_canceled == 
 actual_revenue <- sum(potential_revenue[hotel_bookings_nodup$is_canceled == 0], na.rm = TRUE)
 
 # Print results
-cat("Total potential revenue (no cancellations): $", format(round(total_potential_revenue, 0), big.mark=","), "\n")
-cat("Revenue lost due to cancellations:        $", format(round(lost_revenue_total, 0), big.mark=","), "\n")
-cat("Actual realized revenue:                  $", format(round(actual_revenue, 0), big.mark=","), "\n")
+cat("Total potential revenue (no cancellations): $", format(round(total_potential_revenue, 0), big.mark = ","), "\n")
+cat("Revenue lost due to cancellations:        $", format(round(lost_revenue_total, 0), big.mark = ","), "\n")
+cat("Actual realized revenue:                  $", format(round(actual_revenue, 0), big.mark = ","), "\n")
 
 # -----------------------
 # 1. Special Requests
@@ -515,7 +572,7 @@ ROI_adults <- (expected_savings_adults - investment_adults) / investment_adults 
 # -----------------------
 roi_summary <- data.frame(
   Factor = c("Special Requests", "Booking Changes", "Adults (Room Policy)"),
-  CancelRateDiff = round(c(improvement_requests, improvement_changes, improvement_adults)*100, 2),
+  CancelRateDiff = round(c(improvement_requests, improvement_changes, improvement_adults) * 100, 2),
   Expected_Savings = round(c(expected_savings_requests, expected_savings_changes, expected_savings_adults), 0),
   Investment = round(c(investment_requests, investment_changes, investment_adults), 0),
   ROI_percent = round(c(ROI_requests, ROI_changes, ROI_adults), 1),
@@ -527,7 +584,7 @@ print(roi_summary)
 
 
 # =====================================================
-# WHAT-IF & ROI ANALYSIS FOR ADR 
+# WHAT-IF & ROI ANALYSIS FOR ADR
 # =====================================================
 
 # -----------------------
@@ -573,9 +630,11 @@ ROI_child_adr <- (expected_gain_child - investment_child_adr) / investment_child
 # ROI Summary
 # -----------------------
 roi_summary_adr <- data.frame(
-  Factor = c("Special Requests", 
-             "Repeat Guests (Loyalty Program)", 
-             "Families with Children (Family Package Opportunity)"),
+  Factor = c(
+    "Special Requests",
+    "Repeat Guests (Loyalty Program)",
+    "Families with Children (Family Package Opportunity)"
+  ),
   ADR_Difference = round(c(improvement_requests_adr, improvement_repeat_adr, improvement_child_adr), 2),
   Expected_Gain = round(c(expected_gain_requests, expected_gain_repeat, expected_gain_child), 0),
   Investment = round(c(investment_requests_adr, investment_repeat_adr, investment_child_adr), 0),
@@ -584,4 +643,3 @@ roi_summary_adr <- data.frame(
 
 print("=== WHAT-IF & ROI RESULTS FOR ADR DRIVERS ===")
 print(roi_summary_adr)
-
