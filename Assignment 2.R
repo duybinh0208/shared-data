@@ -174,8 +174,7 @@ cor_df_cancel <- data.frame(
   arrange(desc(abs(correlation)))
 
 # Get top 10 factors by absolute correlation
-top_10_cancel <- cor_df_cancel %>%
-  head(10)
+top_10_cancel <- cor_df_cancel %>% head(10)
 
 # Print the top 10 factors
 cat("Top 10 Factors Correlated with Cancellations:\n")
