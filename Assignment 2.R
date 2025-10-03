@@ -1,13 +1,11 @@
 # Part A: Data preprocessing
 
 #Install library
-install.packages("imputeTS")
-install.packages("dplyr")
 library(imputeTS)
 library(dplyr)
 
 #Read data
-hotel_bookings<- read.csv("C:/Users/tamtr/Downloads/hotel_bookings.csv")
+hotel_bookings<- read.csv("hotel_bookings.csv")
 data.frame(hotel_bookings)
 View(hotel_bookings)
 
@@ -143,8 +141,6 @@ coord_cartesian(xlim = c(0, 30))
 
 #PART B
 #Install library
-install.packages("tidyverse")
-install.packages("corrplot")
 library(tidyverse)
 library(corrplot)
 
