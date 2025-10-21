@@ -608,7 +608,7 @@ for (i in 1:num_folds) {
   test_data  <- df[folds[[i]], ]
 
   # Build & train Random Forest model for the "y_factor" target using all columns except "y_binary"
-  model <- randomForest(y_factor ~ . - y_binary, data = train_data, ntree = 5)
+  model <- randomForest(y_factor ~ . - y_binary, data = train_data, ntree = 100)
 
   # Predict probabilities instead of classes
   preds_prob <- predict(model, newdata = test_data, type = "prob")[, "yes"]
