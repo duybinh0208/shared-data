@@ -580,7 +580,7 @@ bank_model_df_z_smote <- apply_smote(bank_model_df_z, "bank_model_df_z")
 visualize_data_before_and_after_smote(bank_model_df_z, bank_model_df_z_smote)
 
 
-# 5) Build & develop RANDOM FOREST model
+# 5) Build & Develop RANDOM FOREST model with ROC and AUC
 
 # Prepare data to build model
 df <- bank_model_df_z_smote
@@ -588,37 +588,64 @@ df <- bank_model_df_z_smote
 # Fix illegal column names
 names(df) <- make.names(names(df))
 
-# Create "y_factor" column in order to achieve "Stratified Sampling"
+# Create "y_factor" column for stratified sampling and classification target
 df$y_factor <- factor(ifelse(df$y_binary == 1, "yes", "no"), levels = c("yes", "no"))
 
-# Create 5 folds
+# Create 5 folds for cross-validation
 set.seed(123)
 num_folds <- 5
 folds <- createFolds(df$y_factor, k = num_folds)
 
-# Run with 5-fold CV
+# Initialize vector to store AUC values
+auc_values <- c()
+
+# Run 5-fold Cross Validation
 for (i in 1:num_folds) {
   cat("\n==============================\nFold", i, "\n")
 
-  # Classify the Train data vs Test data
+  # Split the data into training and testing sets
   train_data <- df[-folds[[i]], ]
-  test_data <- df[folds[[i]], ]
+  test_data  <- df[folds[[i]], ]
 
-  # Build & develop Random Forest model
-  model <- randomForest(y_factor ~ . - y_binary, data = train_data, ntree = 500)
+  # Build & train Random Forest model
+  model <- randomForest(y_factor ~ . - y_binary, data = train_data, ntree = 5)
 
-  # Execute the model with test data
-  preds <- predict(model, newdata = test_data)
-  cm <- confusionMatrix(preds, test_data$y_factor, positive = "yes")
+  # Predict probabilities instead of classes
+  preds_prob <- predict(model, newdata = test_data, type = "prob")[, "yes"]
 
-  # Show the test output
+  # Convert probabilities into classes using default threshold = 0.5
+  preds_class <- ifelse(preds_prob > 0.5, "yes", "no") |> factor(levels = c("yes", "no"))
+
+  # Confusion Matrix Evaluation
+  cm <- confusionMatrix(preds_class, test_data$y_factor, positive = "yes")
+
+  # Display classification metrics
   cat("\n==============================\nTest output from Fold", i, "\n")
   cat(
-    "Accuracy:", cm$overall["Accuracy"],
-    " Precision:", cm$byClass["Precision"],
-    " Recall:", cm$byClass["Recall"],
-    " F1:", cm$byClass["F1"], "\n"
+    "Accuracy:", round(cm$overall["Accuracy"], 3),
+    "| Precision:", round(cm$byClass["Precision"], 3),
+    "| Recall:", round(cm$byClass["Recall"], 3),
+    "| F1:", round(cm$byClass["F1"], 3), "\n"
   )
+
+  # ---- ROC and AUC Computation ----
+  roc_obj <- roc(test_data$y_factor, preds_prob, levels = c("no", "yes"), direction = "<")
+  auc_value <- auc(roc_obj)
+  auc_values <- c(auc_values, auc_value)
+
+  cat("AUC:", round(auc_value, 4), "\n")
+
+  # Plot ROC Curve for this fold
+  plot(roc_obj,
+       main = paste("ROC Curve - Fold", i),
+       col = "#2E86C1", lwd = 2, legacy.axes = TRUE)
+  abline(a = 0, b = 1, lty = 2, col = "gray")
 }
+
+# ---- Summary of ROC and AUC across folds ----
+cat("\n==============================\n")
+cat("Average AUC across 5 folds:", round(mean(auc_values), 4), "\n")
+cat("Standard Deviation of AUC:", round(sd(auc_values), 4), "\n")
+
 
 cat("\nDone.\n")
