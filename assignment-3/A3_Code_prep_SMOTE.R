@@ -629,7 +629,7 @@ for (i in 1:num_folds) {
   )
 
   # ---- ROC and AUC Computation ----
-  roc_obj <- roc(test_data$y_factor, preds_prob, levels = c("no", "yes"), direction = ">")
+  roc_obj <- roc(test_data$y_factor, preds_prob, levels = c("no", "yes"))
   auc_value <- auc(roc_obj)
   auc_values <- c(auc_values, auc_value)
 
