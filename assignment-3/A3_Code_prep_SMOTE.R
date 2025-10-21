@@ -607,7 +607,7 @@ for (i in 1:num_folds) {
   train_data <- df[-folds[[i]], ]
   test_data  <- df[folds[[i]], ]
 
-  # Build & train Random Forest model
+  # Build & train Random Forest model for the "y_factor" target using all columns except "y_binary"
   model <- randomForest(y_factor ~ . - y_binary, data = train_data, ntree = 5)
 
   # Predict probabilities instead of classes
@@ -636,9 +636,11 @@ for (i in 1:num_folds) {
   cat("AUC:", round(auc_value, 4), "\n")
 
   # Plot ROC Curve for this fold
-  plot(roc_obj,
-       main = paste("ROC Curve - Fold", i),
-       col = "#2E86C1", lwd = 2, legacy.axes = TRUE)
+  plot(
+    roc_obj,
+    main = paste("ROC Curve - Fold", i),
+    col = "#2E86C1", lwd = 2, legacy.axes = TRUE
+  )
   abline(a = 0, b = 1, lty = 2, col = "gray")
 }
 
