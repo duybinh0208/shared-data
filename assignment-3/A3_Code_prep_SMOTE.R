@@ -549,33 +549,37 @@ apply_smote <- function(data, name) {
   return(as.data.frame(data_smote, check.names = FALSE))
 }
 
-# ---- Apply SMOTE to the z-score dataset ----
-bank_model_df_z_smote <- apply_smote(bank_model_df_z, "bank_model_df_z")
-
-# Visualize the effect of SMOTE for bank_model_df_z
+# Function to visualize the effect of SMOTE data
+visualize_data_before_and_after_smote <- function(data_before_smote, data_after_smote) {
 op <- par(no.readonly = TRUE)
 on.exit(par(op))
 par(mfrow = c(1, 2), mar = c(4, 4, 3, 2))
 
 ylim_max <- max(c(
-  table(bank_model_df_z$y_binary),
-  table(bank_model_df_z_smote$y_binary)
+      table(data_before_smote$y_binary),
+      table(data_after_smote$y_binary)
 )) * 1.2
 
-barplot(table(bank_model_df_z$y_binary),
+    barplot(table(data_before_smote$y_binary),
   main = "Ratio Before SMOTE",
   names.arg = c("No", "Yes"),
   col = c("coral", "lightcoral"),
   ylim = c(0, ylim_max)
 )
 
-barplot(table(bank_model_df_z_smote$y_binary),
+    barplot(table(data_after_smote$y_binary),
   main = "Ratio after SMOTE",
   names.arg = c("No", "Yes"),
   col = c("darkseagreen", "darkseagreen3"),
   ylim = c(0, ylim_max)
 )
 par(op)
+}
+
+# Apply SMOTE to the z-score dataset and visualize the effect after SMOTE
+bank_model_df_z_smote <- apply_smote(bank_model_df_z, "bank_model_df_z")
+visualize_data_before_and_after_smote(bank_model_df_z, bank_model_df_z_smote)
+
 
 #--RUN RANDOM FOREST MODEL--#
 # --- Prepare data ---
