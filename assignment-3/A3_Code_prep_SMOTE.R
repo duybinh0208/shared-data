@@ -589,7 +589,7 @@ df <- bank_model_df_z_smote
 names(df) <- make.names(names(df))
 
 # Create "y_factor" column for stratified sampling and classification target
-df$y_factor <- factor(ifelse(df$y_binary == 1, "yes", "no"), levels = c("yes", "no"))
+df$y_factor <- factor(ifelse(df$y_binary == 1, "yes", "no"), levels = c("no", "yes"))
 
 # Create 5 folds for cross-validation
 set.seed(123)
@@ -614,7 +614,7 @@ for (i in 1:num_folds) {
   preds_prob <- predict(model, newdata = test_data, type = "prob")[, "yes"]
 
   # Convert probabilities into classes using default threshold = 0.5
-  preds_class <- ifelse(preds_prob > 0.5, "yes", "no") |> factor(levels = c("yes", "no"))
+  preds_class <- ifelse(preds_prob > 0.5, "yes", "no") |> factor(levels = c("no", "yes"))
 
   # Confusion Matrix Evaluation
   cm <- confusionMatrix(preds_class, test_data$y_factor, positive = "yes")
