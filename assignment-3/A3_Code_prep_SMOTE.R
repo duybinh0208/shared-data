@@ -581,28 +581,39 @@ bank_model_df_z_smote <- apply_smote(bank_model_df_z, "bank_model_df_z")
 visualize_data_before_and_after_smote(bank_model_df_z, bank_model_df_z_smote)
 
 
-#--RUN RANDOM FOREST MODEL--#
-# --- Prepare data ---
-df <- bank_model_df_z_smote
-names(df) <- make.names(names(df)) # fix illegal column names
-df$y_fac <- factor(ifelse(df$y_binary == 1, "yes", "no"), levels = c("no", "yes"))
+# 5) Build & develop RANDOM FOREST model
 
+# Prepare data to build model
+df <- bank_model_df_z_smote
+
+# Fix illegal column names
+names(df) <- make.names(names(df))
+
+# Create "y_factor" column in order to achieve "Stratified Sampling"
+df$y_factor <- factor(ifelse(df$y_binary == 1, "yes", "no"), levels = c("yes", "no"))
+
+# Create 5 folds
 set.seed(123)
 num_folds <- 5
-folds <- createFolds(df$y_fac, k = num_folds)
+folds <- createFolds(df$y_factor, k = num_folds)
 
-# --- Run 5-fold CV ---
+# Run with 5-fold CV
 for (i in 1:num_folds) {
   cat("\n==============================\nFold", i, "\n")
 
+  # Classify the Train data vs Test data
   train_data <- df[-folds[[i]], ]
   test_data <- df[folds[[i]], ]
 
-  model <- randomForest(y_fac ~ . - y_binary, data = train_data, ntree = 500)
+  # Build & develop Random Forest model
+  model <- randomForest(y_factor ~ . - y_binary, data = train_data, ntree = 500)
 
+  # Execute the model with test data
   preds <- predict(model, newdata = test_data)
-  cm <- confusionMatrix(preds, test_data$y_fac, positive = "yes")
+  cm <- confusionMatrix(preds, test_data$y_factor, positive = "yes")
 
+  # Show the test output
+  cat("\n==============================\nTest output from Fold", i, "\n")
   cat(
     "Accuracy:", cm$overall["Accuracy"],
     " Precision:", cm$byClass["Precision"],
