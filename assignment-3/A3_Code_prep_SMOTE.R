@@ -1,12 +1,11 @@
-
 # Bank Marketing Campaign Analysis
 
 
 # Install packages if needed
 install.packages(c(
-  "tidyverse","ggplot2","ggcorrplot","gridExtra","patchwork","scales",
-  "caret","smotefamily","randomForest","rpart","rpart.plot","e1071",
-  "nnet","pROC","RColorBrewer","dplyr", "randomForest"
+  "tidyverse", "ggplot2", "ggcorrplot", "gridExtra", "patchwork", "scales",
+  "caret", "smotefamily", "randomForest", "rpart", "rpart.plot", "e1071",
+  "nnet", "pROC", "RColorBrewer", "dplyr", "randomForest"
 ))
 
 # Load required libraries
@@ -17,12 +16,12 @@ library(gridExtra)
 library(patchwork)
 library(scales)
 library(caret)
-library(smotefamily)  # For SMOTE
+library(smotefamily) # For SMOTE
 library(randomForest)
 library(rpart)
 library(rpart.plot)
-library(e1071)  # For SVM
-library(nnet)   # For neural networks
+library(e1071) # For SVM
+library(nnet) # For neural networks
 library(pROC)
 library(RColorBrewer)
 library(dplyr)
@@ -32,14 +31,14 @@ library(randomForest)
 
 custom_theme <- theme_minimal() +
   theme(
-    plot.title      = element_text(size = 14, face = "bold", hjust = 0.5),
-    plot.subtitle   = element_text(size = 11, hjust = 0.5),
-    axis.title      = element_text(size = 11, face = "bold"),
-    axis.text       = element_text(size = 10),
-    legend.title    = element_text(size = 11, face = "bold"),
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(size = 11, hjust = 0.5),
+    axis.title = element_text(size = 11, face = "bold"),
+    axis.text = element_text(size = 10),
+    legend.title = element_text(size = 11, face = "bold"),
     legend.position = "bottom",
-    panel.grid.minor= element_blank(),
-    panel.border    = element_rect(fill = NA, color = "grey70", size = 0.5)
+    panel.grid.minor = element_blank(),
+    panel.border = element_rect(fill = NA, color = "grey70", size = 0.5)
   )
 theme_set(custom_theme)
 
@@ -50,7 +49,8 @@ theme_set(custom_theme)
 # read.csv will NOT find files outside the working directory.
 
 bank_raw <- read.csv("C:/Users/duybi/Downloads/Assignment/assignment-3/bank-additional-full.csv",
-                     sep = ";", stringsAsFactors = FALSE)
+  sep = ";", stringsAsFactors = FALSE
+)
 
 
 # 1) EDA — detection + quick facts
@@ -60,7 +60,7 @@ is_cat <- function(x) is.character(x) || is.factor(x)
 is_num <- function(x) is.numeric(x)
 
 num_cols <- names(bank_raw)[vapply(bank_raw, is_num, logical(1))]
-cat_cols <- names(bank_raw)[vapply(bank_raw, is_cat,  logical(1))]
+cat_cols <- names(bank_raw)[vapply(bank_raw, is_cat, logical(1))]
 
 # 1.1 Target imbalance
 target_tab <- bank_raw %>%
@@ -111,10 +111,10 @@ if (duplicates > 0) {
   # (optional) keep a copy of the duplicates for audit
   dup_rows <- bank_pp[duplicated(bank_pp) | duplicated(bank_pp, fromLast = TRUE), ]
   write.csv(dup_rows, "C:/Users/duybi/Downloads/Assignment/assignment-3/duplicates_found.csv", row.names = FALSE)
-  
+
   n_before <- nrow(bank_pp)
-  bank_pp  <- dplyr::distinct(bank_pp)  # drop exact duplicates, keep first
-  n_after  <- nrow(bank_pp)
+  bank_pp <- dplyr::distinct(bank_pp) # drop exact duplicates, keep first
+  n_after <- nrow(bank_pp)
   cat("Removed", n_before - n_after, "duplicate rows. New size:", n_after, "\n")
 } else {
   cat("No exact duplicate rows to remove.\n")
@@ -128,7 +128,9 @@ if ("duration" %in% names(bank_pp)) bank_pp <- select(bank_pp, -duration)
 # Numeric → median; Categorical → mode (with special handling for "unknown")
 mode_of <- function(v) {
   v <- v[!is.na(v)]
-  if (length(v) == 0) return(NA_character_)
+  if (length(v) == 0) {
+    return(NA_character_)
+  }
   names(sort(table(v), decreasing = TRUE))[1]
 }
 
@@ -136,7 +138,9 @@ mode_of <- function(v) {
 handle_unknown <- function(v) {
   v <- as.character(v)
   unk_mask <- v == "unknown"
-  if (!any(unk_mask)) return(v)
+  if (!any(unk_mask)) {
+    return(v)
+  }
   unk_pct <- mean(unk_mask)
   if (unk_pct > 0.05) {
     # keep as its own informative level
@@ -178,8 +182,10 @@ cap_winsor <- function(x, lower_p = 0.01, upper_p = 0.99) {
   x
 }
 
-cap_candidates <- c("age", "campaign", "previous", "emp.var.rate",
-                    "cons.price.idx", "cons.conf.idx", "euribor3m", "nr.employed")
+cap_candidates <- c(
+  "age", "campaign", "previous", "emp.var.rate",
+  "cons.price.idx", "cons.conf.idx", "euribor3m", "nr.employed"
+)
 cap_candidates <- intersect(cap_candidates, names(bank_pp))
 for (nm in cap_candidates) bank_pp[[nm]] <- cap_winsor(bank_pp[[nm]])
 
@@ -188,38 +194,41 @@ for (nm in cap_candidates) bank_pp[[nm]] <- cap_winsor(bank_pp[[nm]])
 # data_clean: imputed + winsorized + no 'duration' + duplicates removed (NO FE)
 data_clean <- bank_pp
 
-
 # (Optional) write to CSV
 write.csv(
   data_clean,
   "C:/Users/duybi/Downloads/Assignment/assignment-3/data_clean.csv",
-  row.names = FALSE)
+  row.names = FALSE
+)
 
 # 2.6 Feature Engineering
 bank_pp <- bank_pp %>%
   mutate(
     age_group = cut(age,
-                    breaks = c(0, 25, 35, 45, 55, 65, Inf),
-                    labels = c("Young", "Early_Career", "Mid_Career",
-                               "Late_Career", "Pre_Retirement", "Senior"),
-                    right = FALSE),
+      breaks = c(0, 25, 35, 45, 55, 65, Inf),
+      labels = c(
+        "Young", "Early_Career", "Mid_Career",
+        "Late_Career", "Pre_Retirement", "Senior"
+      ),
+      right = FALSE
+    ),
     contact_intensity = case_when(
       campaign <= 1 ~ "Low",
       campaign <= 3 ~ "Medium",
-      TRUE          ~ "High"
+      TRUE ~ "High"
     ),
     economic_situation = case_when(
-      emp.var.rate >  0  ~ "Growing",
-      emp.var.rate < -1  ~ "Declining",
-      TRUE               ~ "Stable"
+      emp.var.rate > 0 ~ "Growing",
+      emp.var.rate < -1 ~ "Declining",
+      TRUE ~ "Stable"
     ),
     has_previous_contact = if_else(previous > 0, "Yes", "No"),
     days_since_contact = case_when(
-      pdays == 999           ~ "Never",
-      pdays < 7              ~ "Recent_Week",
-      pdays < 30             ~ "Recent_Month",
-      pdays < 90             ~ "Recent_Quarter",
-      TRUE                   ~ "Old"
+      pdays == 999 ~ "Never",
+      pdays < 7 ~ "Recent_Week",
+      pdays < 30 ~ "Recent_Month",
+      pdays < 90 ~ "Recent_Quarter",
+      TRUE ~ "Old"
     ),
     y_binary = if_else(y == "yes", 1L, 0L)
   )
@@ -249,25 +258,36 @@ pred_cols <- setdiff(names(bank_model_df), "y_binary")
 # 1) Z-score standardization
 bank_model_df_z <- bank_model_df
 bank_model_df_z[pred_cols] <- lapply(bank_model_df_z[pred_cols], function(col) {
-  if (!is.numeric(col) || is_binary(col)) return(col)  # Skip dummy 0/1
+  if (!is.numeric(col) || is_binary(col)) {
+    return(col)
+  } # Skip dummy 0/1
   s <- sd(col, na.rm = TRUE)
-  if (is.na(s) || s == 0) return(rep(0, length(col)))
+  if (is.na(s) || s == 0) {
+    return(rep(0, length(col)))
+  }
   as.numeric(scale(col))
 })
 
 # 2) Min–max scaling to [0,1] ---- MAYBE REDUNDANT --- REMOVE LATER
 rng_scale <- function(x) {
-  if (!is.numeric(x) || is_binary(x)) return(x)  # Skip dummy 0/1
-  r <- range(x, na.rm = TRUE); if (diff(r) == 0) return(rep(0, length(x)))
+  if (!is.numeric(x) || is_binary(x)) {
+    return(x)
+  } # Skip dummy 0/1
+  r <- range(x, na.rm = TRUE)
+  if (diff(r) == 0) {
+    return(rep(0, length(x)))
+  }
   (x - r[1]) / (r[2] - r[1])
 }
 bank_model_df_mm <- bank_model_df
 bank_model_df_mm[pred_cols] <- lapply(bank_model_df_mm[pred_cols], rng_scale)
 
-message("Model frames ready:",
-        "\n  - bank_model_df (raw one-hot)",
-        "\n  - bank_model_df_z (z-score, no re-scaling of dummies)",
-        "\n  - bank_model_df_mm (min-max, no re-scaling of dummies)")
+message(
+  "Model frames ready:",
+  "\n  - bank_model_df (raw one-hot)",
+  "\n  - bank_model_df_z (z-score, no re-scaling of dummies)",
+  "\n  - bank_model_df_mm (min-max, no re-scaling of dummies)"
+)
 
 # (Optional) write to CSV
 write.csv(bank_model_df_z, "C:/Users/duybi/Downloads/Assignment/assignment-3/bank_model_df_z.csv", row.names = FALSE)
@@ -279,40 +299,45 @@ pal_no_yes <- c("no" = "#E74C3C", "yes" = "#27AE60")
 # P1: Target distribution
 target_tab <- data_clean %>%
   dplyr::count(y) %>%
-  dplyr::mutate(pct = n / sum(n),
-                lbl = paste0(scales::percent(pct, accuracy = 0.1), "\n(n=", scales::comma(n), ")"))
+  dplyr::mutate(
+    pct = n / sum(n),
+    lbl = paste0(scales::percent(pct, accuracy = 0.1), "\n(n=", scales::comma(n), ")")
+  )
 
 p1 <- ggplot2::ggplot(target_tab, ggplot2::aes(x = "", y = pct, fill = y)) +
   ggplot2::geom_col(width = 1, color = "white") +
   ggplot2::coord_polar(theta = "y") +
   ggplot2::scale_fill_manual(values = pal_no_yes) +
   ggplot2::geom_text(ggplot2::aes(label = lbl),
-                     position = ggplot2::position_stack(vjust = 0.5),
-                     fontface = "bold", size = 3.5, lineheight = 0.9) +
+    position = ggplot2::position_stack(vjust = 0.5),
+    fontface = "bold", size = 3.5, lineheight = 0.9
+  ) +
   ggplot2::labs(
     title = "Target Distribution: Term Deposit Subscription",
     subtitle = "Severe class imbalance",
     fill = "Subscription Decision",
     x = NULL, y = NULL
   ) +
-  ggplot2::theme(axis.ticks = element_blank(),
-                 axis.text  = element_blank(),
-                 panel.grid = element_blank(),
-                 legend.position = "bottom")
+  ggplot2::theme(
+    axis.ticks = element_blank(),
+    axis.text = element_blank(),
+    panel.grid = element_blank(),
+    legend.position = "bottom"
+  )
 
 p1
 
 # P2: Age distribution by target
 p2 <- ggplot2::ggplot(data_clean, ggplot2::aes(x = age, fill = y)) +
   ggplot2::geom_histogram(bins = 30, alpha = 0.7, position = "stack") +
-  ggplot2::facet_wrap(~ y, scales = "free_y") +
+  ggplot2::facet_wrap(~y, scales = "free_y") +
   ggplot2::scale_fill_manual(values = pal_no_yes) +
   ggplot2::labs(
     title = "Age Distribution by Subscription Status",
     x = "Age", y = "Frequency",
     fill = "Subscription Decision"
   ) +
-  ggplot2::theme(legend.position = "none")  # keep none if you prefer facets only
+  ggplot2::theme(legend.position = "none") # keep none if you prefer facets only
 
 p2
 
@@ -395,7 +420,7 @@ p6
 
 
 # P7: Month activity stacked
-month_order <- c("jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec")
+month_order <- c("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
 data_clean <- data_clean %>% mutate(month = tolower(month)) # Ensure in-case sensitive comparison
 data_clean$month <- factor(data_clean$month, levels = month_order)
 
@@ -434,11 +459,13 @@ p8
 # P9: Correlation among economic indicators (+ binary y)
 econ <- data_clean %>%
   dplyr::transmute(emp.var.rate, cons.price.idx, cons.conf.idx, euribor3m, nr.employed,
-                   y_num = as.numeric(y == "yes"))
+    y_num = as.numeric(y == "yes")
+  )
 cor_mat <- stats::cor(econ, use = "complete.obs")
 
 p9 <- ggcorrplot::ggcorrplot(
-  cor_mat, method = "circle", type = "lower", lab = TRUE, lab_size = 3,
+  cor_mat,
+  method = "circle", type = "lower", lab = TRUE, lab_size = 3,
   colors = c("#E74C3C", "white", "#27AE60"),
   title = "Correlation: Economic Indicators & Subscription Decision (binary)"
 )
@@ -448,13 +475,18 @@ p9
 set.seed(42)
 rf_df <- data_clean %>%
   dplyr::mutate(across(where(is.character), factor),
-                y = factor(y))
+    y = factor(y)
+  )
 rf_sample <- rf_df[sample(nrow(rf_df), min(5000, nrow(rf_df))), ]
-rf_quick <- randomForest::randomForest(y ~ ., data = rf_sample, ntree = 100,
-                                       importance = TRUE, na.action = na.omit)
+rf_quick <- randomForest::randomForest(y ~ .,
+  data = rf_sample, ntree = 100,
+  importance = TRUE, na.action = na.omit
+)
 imp <- randomForest::importance(rf_quick)
-imp_df <- tibble::tibble(variable = rownames(imp),
-                         gini = imp[, "MeanDecreaseGini"]) %>%
+imp_df <- tibble::tibble(
+  variable = rownames(imp),
+  gini = imp[, "MeanDecreaseGini"]
+) %>%
   dplyr::arrange(dplyr::desc(gini)) %>%
   dplyr::slice_head(n = 15)
 
@@ -472,46 +504,48 @@ dashboard <- (p1 + p2) / (p3 + p4) / (p5 + p6) / (p7 + p8) / (p9 + p10) +
     title = "Bank Marketing Campaign — EDA & Feature Insights (data_clean)",
     subtitle = "Patterns and relationships in term deposit subscription"
   )
-dashboard #export with width is 2400 and tick maitain ratio
+dashboard # export with width is 2400 and tick maitain ratio
+
+# 4) SMOTE data
 
 cat("\n========================================")
-cat("\n     APPLYING SMOTE")
+cat("\n==========   APPLYING SMOTE   ==========")
 cat("\n========================================\n")
 
 # Function to apply SMOTE for bank_model_df_z (target = y_binary)
 apply_smote <- function(data, name) {
-  cat("\nProcessing:", name, "\n")
-  
+  cat("\nProcessing: ", name, "\n")
+
   # Show BEFORE SMOTE
   class_counts_before <- table(data$y_binary)
   cat("  BEFORE SMOTE:\n")
-  cat("    Class 0:", class_counts_before[1], "\n")
-  cat("    Class 1:", class_counts_before[2], "\n")
-  cat("    Imbalance ratio:", round(class_counts_before[1] / class_counts_before[2], 2), ": 1\n")
-  
+  cat("    Class 0: ", class_counts_before[1], "\n")
+  cat("    Class 1: ", class_counts_before[2], "\n")
+  cat("    Imbalance ratio: ", round(class_counts_before[1] / class_counts_before[2], 2), ": 1\n")
+
   # Separate features and target
   X <- data[, !names(data) %in% "y_binary", drop = FALSE]
-  y <- as.numeric(data$y_binary)  # ensure numeric 0/1
-  
+  y <- as.numeric(data$y_binary) # ensure numeric 0/1
+
   # Apply SMOTE (K=5 nearest neighbors) on FULL data
   smote_result <- smotefamily::SMOTE(X = X, target = y, K = 5, dup_size = 0)
-  
+
   # Combine back together
   data_smote <- smote_result$data
   colnames(data_smote)[ncol(data_smote)] <- "y_binary"
-  
+
   # Ensure 0/1 numeric for target (SMOTE may return numeric not exactly 0/1)
   data_smote$y_binary <- as.numeric(data_smote$y_binary)
   data_smote$y_binary <- ifelse(data_smote$y_binary > 0.5, 1, 0)
-  
+
   # Show AFTER SMOTE
   class_counts_after <- table(data_smote$y_binary)
   cat("  AFTER SMOTE:\n")
-  cat("    Class 0:", class_counts_after[1], "\n")
-  cat("    Class 1:", class_counts_after[2], "\n")
-  cat("    Total samples:", nrow(data_smote), "(was:", nrow(data), ")\n")
+  cat("    Class 0: ", class_counts_after[1], "\n")
+  cat("    Class 1: ", class_counts_after[2], "\n")
+  cat("    Total samples:", nrow(data_smote), "(was: ", nrow(data), ")\n")
   cat("    Imbalance ratio:", round(class_counts_after[1] / class_counts_after[2], 2), ": 1\n")
-  
+
   return(as.data.frame(data_smote, check.names = FALSE))
 }
 
@@ -519,30 +553,35 @@ apply_smote <- function(data, name) {
 bank_model_df_z_smote <- apply_smote(bank_model_df_z, "bank_model_df_z")
 
 # Visualize the effect of SMOTE for bank_model_df_z
-op <- par(no.readonly = TRUE); on.exit(par(op))
-par(mfrow = c(1,2), mar = c(4,4,3,2))
+op <- par(no.readonly = TRUE)
+on.exit(par(op))
+par(mfrow = c(1, 2), mar = c(4, 4, 3, 2))
 
-ylim_max <- max(c(table(bank_model_df_z$y_binary),
-                  table(bank_model_df_z_smote$y_binary))) * 1.2
+ylim_max <- max(c(
+  table(bank_model_df_z$y_binary),
+  table(bank_model_df_z_smote$y_binary)
+)) * 1.2
 
 barplot(table(bank_model_df_z$y_binary),
-        main = "Ratio Before SMOTE",
-        names.arg = c("No","Yes"),
-        col = c("coral", "lightcoral"),
-        ylim = c(0, ylim_max))
+  main = "Ratio Before SMOTE",
+  names.arg = c("No", "Yes"),
+  col = c("coral", "lightcoral"),
+  ylim = c(0, ylim_max)
+)
 
 barplot(table(bank_model_df_z_smote$y_binary),
-        main = "Ratio after SMOTE",
-        names.arg = c("No","Yes"),
-        col = c("darkseagreen", "darkseagreen3"),
-        ylim = c(0, ylim_max))
+  main = "Ratio after SMOTE",
+  names.arg = c("No", "Yes"),
+  col = c("darkseagreen", "darkseagreen3"),
+  ylim = c(0, ylim_max)
+)
 par(op)
 
 #--RUN RANDOM FOREST MODEL--#
 # --- Prepare data ---
 df <- bank_model_df_z_smote
-names(df) <- make.names(names(df))                     # fix illegal column names
-df$y_fac <- factor(ifelse(df$y_binary == 1, "yes", "no"), levels = c("no","yes"))
+names(df) <- make.names(names(df)) # fix illegal column names
+df$y_fac <- factor(ifelse(df$y_binary == 1, "yes", "no"), levels = c("no", "yes"))
 
 set.seed(123)
 num_folds <- 5
@@ -551,20 +590,21 @@ folds <- createFolds(df$y_fac, k = num_folds)
 # --- Run 5-fold CV ---
 for (i in 1:num_folds) {
   cat("\n==============================\nFold", i, "\n")
-  
+
   train_data <- df[-folds[[i]], ]
-  test_data  <- df[ folds[[i]], ]
-  
+  test_data <- df[folds[[i]], ]
+
   model <- randomForest(y_fac ~ . - y_binary, data = train_data, ntree = 500)
-  
+
   preds <- predict(model, newdata = test_data)
   cm <- confusionMatrix(preds, test_data$y_fac, positive = "yes")
-  
-  cat("Accuracy:", cm$overall["Accuracy"],
-      " Precision:", cm$byClass["Precision"],
-      " Recall:", cm$byClass["Recall"],
-      " F1:", cm$byClass["F1"], "\n")
+
+  cat(
+    "Accuracy:", cm$overall["Accuracy"],
+    " Precision:", cm$byClass["Precision"],
+    " Recall:", cm$byClass["Recall"],
+    " F1:", cm$byClass["F1"], "\n"
+  )
 }
 
 cat("\nDone.\n")
-
