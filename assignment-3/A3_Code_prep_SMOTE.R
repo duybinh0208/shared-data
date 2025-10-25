@@ -680,7 +680,11 @@ plot_roc_with_thresholds <- function(roc_obj,
     roc_obj,
     main = title,
     col = color_curve,
-    lwd = 2
+    lwd = 2,
+    legacy.axes = TRUE,
+    print.thres = "best", # Chỉ in ngưỡng tối ưu (ví dụ: tối đa hóa F1)
+    print.thres.best.method = "youden", # Hoặc "closest.topleft"
+    print.thres.cex = 0.8
   )
   abline(a = 0, b = 1, lty = 2, col = "gray")
 
