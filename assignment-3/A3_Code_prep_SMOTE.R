@@ -2,11 +2,11 @@
 
 
 # Install packages if needed
-install.packages(c(
-  "tidyverse", "ggplot2", "ggcorrplot", "gridExtra", "patchwork", "scales",
-  "caret", "smotefamily", "randomForest", "rpart", "rpart.plot", "e1071",
-  "nnet", "pROC", "RColorBrewer", "dplyr", "randomForest"
-))
+# install.packages(c(
+#   "tidyverse", "ggplot2", "ggcorrplot", "gridExtra", "patchwork", "scales",
+#   "caret", "smotefamily", "randomForest", "rpart", "rpart.plot", "e1071",
+#   "nnet", "pROC", "RColorBrewer", "dplyr", "randomForest"
+# ))
 
 # Load required libraries
 library(tidyverse)
@@ -194,11 +194,11 @@ for (nm in cap_candidates) bank_pp[[nm]] <- cap_winsor(bank_pp[[nm]])
 data_clean <- bank_pp
 
 # (Optional) write to CSV
-write.csv(
-  data_clean,
-  "C:/Users/duybi/Downloads/Assignment/assignment-3/data_clean.csv",
-  row.names = FALSE
-)
+# write.csv(
+#   data_clean,
+#   "C:/Users/duybi/Downloads/Assignment/assignment-3/data_clean.csv",
+#   row.names = FALSE
+# )
 
 # 2.6 Feature Engineering
 bank_pp <- bank_pp %>%
@@ -289,8 +289,8 @@ message(
 )
 
 # (Optional) write to CSV
-write.csv(bank_model_df_z, "C:/Users/duybi/Downloads/Assignment/assignment-3/bank_model_df_z.csv", row.names = FALSE)
-write.csv(bank_model_df_mm, "C:/Users/duybi/Downloads/Assignment/assignment-3/bank_model_df_mm.csv", row.names = FALSE)
+# write.csv(bank_model_df_z, "C:/Users/duybi/Downloads/Assignment/assignment-3/bank_model_df_z.csv", row.names = FALSE)
+# write.csv(bank_model_df_mm, "C:/Users/duybi/Downloads/Assignment/assignment-3/bank_model_df_mm.csv", row.names = FALSE)
 
 # 3) VISUALS — 10 ggplot2 plots
 
@@ -511,6 +511,26 @@ cat("\n========================================")
 cat("\n==========   APPLYING SMOTE   ==========")
 cat("\n========================================\n")
 
+# Thêm hàm tiện ích để tính và in tỉ lệ
+print_class_ratios <- function(data, data_name) {
+    # Giả định y_factor là cột mục tiêu (levels: "no", "yes")
+    class_counts <- table(data$y_factor)
+    count_no <- class_counts["no"]
+    count_yes <- class_counts["yes"]
+    
+    # Tính tỉ lệ phần trăm
+    percent_no <- round((count_no / sum(class_counts)) * 100, 2)
+    percent_yes <- round((count_yes / sum(class_counts)) * 100, 2)
+    
+    # Tính tỉ lệ mất cân bằng (NO : YES)
+    ratio_no_to_yes <- round(count_no / count_yes, 2)
+    
+    cat("   --- Class Distribution in", data_name, "---\n")
+    cat(paste0("   NO (Class 0): ", count_no, " (", percent_no, "%)\n"))
+    cat(paste0("   YES (Class 1): ", count_yes, " (", percent_yes, "%)\n"))
+    cat(paste0("   Imbalance Ratio (NO:YES): ", ratio_no_to_yes, " : 1\n"))
+}
+
 # Function to apply SMOTE for bank_model_df_z (target = y_binary)
 apply_smote <- function(data, name) {
   cat("\nProcessing: ", name, "\n")
@@ -523,8 +543,11 @@ apply_smote <- function(data, name) {
   cat("    Imbalance ratio: ", round(class_counts_before[1] / class_counts_before[2], 2), ": 1\n")
 
   # Separate features and target
-  X <- data[, !names(data) %in% "y_binary", drop = FALSE]
-  y <- as.numeric(data$y_binary) # ensure numeric 0/1
+  X <- data[, !names(data) %in% c("y_binary"), drop = FALSE]
+
+  # Ensure numeric 0/1
+  X <- as.data.frame(lapply(X, as.numeric))
+  y <- as.numeric(data$y_binary)
 
   # Apply SMOTE (K=5 nearest neighbors) on FULL data
   smote_result <- smotefamily::SMOTE(X = X, target = y, K = 5, dup_size = 0)
@@ -537,6 +560,12 @@ apply_smote <- function(data, name) {
   data_smote$y_binary <- as.numeric(data_smote$y_binary)
   data_smote$y_binary <- ifelse(data_smote$y_binary > 0.5, 1, 0)
 
+  # Ensure "y_factor"
+  data_smote$y_factor <- factor(
+    ifelse(data_smote$y_binary > 0.5, "yes", "no"),
+    levels = c("no", "yes")
+  )
+
   # Show AFTER SMOTE
   class_counts_after <- table(data_smote$y_binary)
   cat("  AFTER SMOTE:\n")
@@ -548,6 +577,72 @@ apply_smote <- function(data, name) {
   return(as.data.frame(data_smote, check.names = FALSE))
 }
 
+apply_smote_tuned <- function(data, name, target_minority_ratio = 1.0, K = 5) {
+  cat("\nProcessing: ", name, "\n")
+
+  # 1. Show BEFORE SMOTE
+  class_counts_before <- table(data$y_binary)
+  count_majority <- class_counts_before["0"] # Lớp NO
+  count_minority <- class_counts_before["1"] # Lớp YES
+
+  cat("BEFORE SMOTE:\n")
+  cat("  Class 0 (NO): ", count_majority, "\n")
+  cat("  Class 1 (YES): ", count_minority, "\n")
+  cat("  Imbalance ratio (NO/YES): ", round(count_majority / count_minority, 2), ": 1\n")
+
+  # 2. TÍNH TOÁN DUP_SIZE DỰA TRÊN TỈ LỆ MONG MUỐN (target_minority_ratio)
+
+  # Số lượng mẫu thiểu số mong muốn (target_minority_ratio * count_majority)
+  target_minority_count <- count_majority * target_minority_ratio
+
+  # dup_size = (Số lượng mong muốn / Số lượng hiện tại) - 1
+  if (target_minority_count <= count_minority) {
+    # Nếu tỉ lệ mong muốn không yêu cầu tăng thêm, không tạo mẫu mới
+    dup_size_param <- 0
+  } else {
+    dup_size_param <- (target_minority_count / count_minority) - 1
+  }
+
+  cat(paste0(" -> Target Minority Ratio (YES/NO): ", target_minority_ratio, ":1\n"))
+  cat(paste0(" -> SMOTE dup_size parameter calculated: ", round(dup_size_param, 4), "\n"))
+
+  # 3. Separate features and target
+  # Loại trừ y_binary và y_factor
+  X <- data[, !names(data) %in% c("y_binary", "y_factor"), drop = FALSE]
+  X <- as.data.frame(lapply(X, as.numeric))
+  y <- as.numeric(data$y_binary)
+
+  # 4. Apply SMOTE with calculated dup_size
+  smote_result <- smotefamily::SMOTE(X = X, target = y, K = K, dup_size = dup_size_param)
+
+  # 5. Combine back together
+  data_smote <- smote_result$data
+  colnames(data_smote)[ncol(data_smote)] <- "y_binary"
+
+  # Ensure 0/1 numeric for target
+  data_smote$y_binary <- as.numeric(data_smote$y_binary)
+  data_smote$y_binary <- ifelse(data_smote$y_binary > 0.5, 1, 0)
+
+  # Ensure "y_factor"
+  data_smote$y_factor <- factor(
+    ifelse(data_smote$y_binary > 0.5, "yes", "no"),
+    levels = c("no", "yes")
+  )
+
+  # 6. Show AFTER SMOTE
+  class_counts_after <- table(data_smote$y_binary)
+  count_majority_after <- class_counts_after["0"]
+  count_minority_after <- class_counts_after["1"]
+
+  cat(" AFTER SMOTE:\n")
+  cat("  Class 0 (NO): ", count_majority_after, "\n")
+  cat("  Class 1 (YES): ", count_minority_after, "\n")
+  cat("  Total samples:", nrow(data_smote), "(was: ", nrow(data), ")\n")
+  cat("  Imbalance ratio (NO/YES):", round(count_majority_after / count_minority_after, 2), ": 1\n")
+
+  return(as.data.frame(data_smote, check.names = FALSE))
+}
+
 # Function to visualize the effect of SMOTE data
 visualize_data_before_and_after_smote <- function(data_before_smote, data_after_smote) {
   op <- par(no.readonly = TRUE)
@@ -555,8 +650,8 @@ visualize_data_before_and_after_smote <- function(data_before_smote, data_after_
   par(mfrow = c(1, 2), mar = c(4, 4, 3, 2))
 
   ylim_max <- max(c(
-        table(data_before_smote$y_binary),
-        table(data_after_smote$y_binary)
+    table(data_before_smote$y_binary),
+    table(data_after_smote$y_binary)
   )) * 1.2
 
   barplot(table(data_before_smote$y_binary),
@@ -575,15 +670,59 @@ visualize_data_before_and_after_smote <- function(data_before_smote, data_after_
   par(op)
 }
 
-# Apply SMOTE to the z-score dataset and visualize the effect after SMOTE
-bank_model_df_z_smote <- apply_smote(bank_model_df_z, "bank_model_df_z")
-visualize_data_before_and_after_smote(bank_model_df_z, bank_model_df_z_smote)
-
-
 # 5) Build & Develop RANDOM FOREST model with ROC and AUC
 
+# Define a function to draw ROC curve with multiple threshholds
+plot_roc_with_thresholds <- function(roc_obj,
+                                     thresholds = c(0.2, 0.5, 0.8),
+                                     title = "ROC Curve with Thresholds",
+                                     color_curve = "#2E86C1",
+                                     color_points = "red") {
+  # Validate input
+  if (missing(roc_obj) || !inherits(roc_obj, "roc")) {
+    stop("'roc_obj' must be a valid object from pROC::roc()")
+  }
+
+  # Compute coordinates for selected thresholds
+  coords_multi <- coords(
+    roc_obj,
+    x = thresholds,
+    input = "threshold",
+    ret = c("specificity", "sensitivity", "threshold")
+  )
+
+  # Convert Specificity → FPR (False Positive Rate)
+  fpr_points <- 1 - coords_multi["specificity", ]
+  tpr_points <- coords_multi["sensitivity", ]
+
+  # ---- Plot ROC curve ----
+  plot(
+    roc_obj,
+    main = title,
+    col = color_curve,
+    lwd = 2
+  )
+  abline(a = 0, b = 1, lty = 2, col = "gray")
+
+  # ---- Add threshold points ----
+  points(fpr_points, tpr_points, col = color_points, pch = 19, cex = 1.3)
+
+  # ---- Label thresholds ----
+  text(
+    fpr_points, tpr_points,
+    labels = paste0("t=", thresholds),
+    pos = 4, cex = 0.8, col = color_points
+  )
+
+  # ---- Display coordinates summary ----
+  cat("\nThreshold coordinates:\n")
+  print(round(coords_multi, 3))
+
+  invisible(coords_multi) # Return invisibly for further use if needed
+}
+
 # Prepare data to build model
-df <- bank_model_df_z_smote
+df <- bank_model_df_z
 
 # Fix illegal column names
 names(df) <- make.names(names(df))
@@ -605,16 +744,29 @@ for (i in 1:num_folds) {
 
   # Split the data into training and testing sets
   train_data <- df[-folds[[i]], ]
-  test_data  <- df[folds[[i]], ]
+  test_data <- df[folds[[i]], ]
+
+  # Print for debug
+  # print_class_ratios(train_data, "Train Data (Before SMOTE)")
+  # print_class_ratios(test_data, "Test Data")
+
+  # Apply smote on train_data only
+  train_data_smote <- apply_smote(train_data, "train_data")
+  # train_data_smote <- apply_smote_tuned(train_data, "train_data", target_minority_ratio = 1, K = 3)
+  visualize_data_before_and_after_smote(train_data, train_data_smote)
+
+  # Print for debug
+  # print_class_ratios(train_data_smote, "Train Data (After SMOTE)")
 
   # Build & train Random Forest model for the "y_factor" target using all columns except "y_binary"
-  model <- randomForest(y_factor ~ . - y_binary, data = train_data, ntree = 100)
+  model <- randomForest(y_factor ~ . - y_binary, data = train_data_smote, ntree = 1)
 
   # Predict probabilities instead of classes
   preds_prob <- predict(model, newdata = test_data, type = "prob")[, "yes"]
 
-  # Convert probabilities into classes using default threshold = 0.5
-  preds_class <- ifelse(preds_prob > 0.5, "yes", "no") |> factor(levels = c("no", "yes"))
+  # Convert probabilities into classes using default threshold
+  default_threshold = 0.5
+  preds_class <- ifelse(preds_prob > default_threshold, "yes", "no") |> factor(levels = c("no", "yes"))
 
   # Confusion Matrix Evaluation
   cm <- confusionMatrix(preds_class, test_data$y_factor, positive = "yes")
@@ -629,19 +781,14 @@ for (i in 1:num_folds) {
   )
 
   # ---- ROC and AUC Computation ----
-  roc_obj <- roc(test_data$y_factor, preds_prob, levels = c("no", "yes"))
+  roc_obj <- roc(test_data$y_factor, preds_prob, levels = c("no", "yes"), direction = "<")
   auc_value <- auc(roc_obj)
   auc_values <- c(auc_values, auc_value)
 
   cat("AUC:", round(auc_value, 4), "\n")
 
   # Plot ROC Curve for this fold
-  plot(
-    roc_obj,
-    main = paste("ROC Curve - Fold", i),
-    col = "#2E86C1", lwd = 2, legacy.axes = TRUE
-  )
-  abline(a = 0, b = 1, lty = 2, col = "gray")
+  plot_roc_with_thresholds(roc_obj, thresholds = c(0.3, 0.5, 0.7))
 }
 
 # ---- Summary of ROC and AUC across folds ----
