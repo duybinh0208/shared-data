@@ -172,7 +172,7 @@ for (nm in names(bank_pp)) {
 }
 
 # 2.4 Optional outlier capping (Winsorize) for *truly* continuous features
-# Keep pdays raw (999 sentinel →  feature-engineer instead).
+# Keep pdays raw (999 sentinel -> feature-engineer instead).
 cap_winsor <- function(x, lower_p = 0.01, upper_p = 0.99) {
   lo <- quantile(x, lower_p, na.rm = TRUE)
   hi <- quantile(x, upper_p, na.rm = TRUE)
@@ -511,26 +511,6 @@ cat("\n========================================")
 cat("\n==========   APPLYING SMOTE   ==========")
 cat("\n========================================\n")
 
-# Thêm hàm tiện ích để tính và in tỉ lệ
-print_class_ratios <- function(data, data_name) {
-    # Giả định y_factor là cột mục tiêu (levels: "no", "yes")
-    class_counts <- table(data$y_factor)
-    count_no <- class_counts["no"]
-    count_yes <- class_counts["yes"]
-    
-    # Tính tỉ lệ phần trăm
-    percent_no <- round((count_no / sum(class_counts)) * 100, 2)
-    percent_yes <- round((count_yes / sum(class_counts)) * 100, 2)
-    
-    # Tính tỉ lệ mất cân bằng (NO : YES)
-    ratio_no_to_yes <- round(count_no / count_yes, 2)
-    
-    cat("   --- Class Distribution in", data_name, "---\n")
-    cat(paste0("   NO (Class 0): ", count_no, " (", percent_no, "%)\n"))
-    cat(paste0("   YES (Class 1): ", count_yes, " (", percent_yes, "%)\n"))
-    cat(paste0("   Imbalance Ratio (NO:YES): ", ratio_no_to_yes, " : 1\n"))
-}
-
 # Function to apply SMOTE for bank_model_df_z (target = y_binary)
 apply_smote <- function(data, name) {
   cat("\nProcessing: ", name, "\n")
@@ -561,10 +541,10 @@ apply_smote <- function(data, name) {
   data_smote$y_binary <- ifelse(data_smote$y_binary > 0.5, 1, 0)
 
   # Ensure "y_factor"
-  data_smote$y_factor <- factor(
-    ifelse(data_smote$y_binary > 0.5, "yes", "no"),
-    levels = c("no", "yes")
-  )
+  # data_smote$y_factor <- factor(
+  #   ifelse(data_smote$y_binary > 0.5, "yes", "no"),
+  #   levels = c("no", "yes")
+  # )
 
   # Show AFTER SMOTE
   class_counts_after <- table(data_smote$y_binary)
@@ -721,8 +701,13 @@ plot_roc_with_thresholds <- function(roc_obj,
   invisible(coords_multi) # Return invisibly for further use if needed
 }
 
+# Apply SMOTE
+bank_model_df_z_smote <- apply_smote(bank_model_df_z, "bank_model_df_z")
+visualize_data_before_and_after_smote(bank_model_df_z, bank_model_df_z_smote)
+
 # Prepare data to build model
-df <- bank_model_df_z
+# df <- bank_model_df_z
+df <- bank_model_df_z_smote
 
 # Fix illegal column names
 names(df) <- make.names(names(df))
@@ -751,15 +736,16 @@ for (i in 1:num_folds) {
   # print_class_ratios(test_data, "Test Data")
 
   # Apply smote on train_data only
-  train_data_smote <- apply_smote(train_data, "train_data")
+  # train_data_smote <- apply_smote(train_data, "train_data")
   # train_data_smote <- apply_smote_tuned(train_data, "train_data", target_minority_ratio = 1, K = 3)
-  visualize_data_before_and_after_smote(train_data, train_data_smote)
+  # visualize_data_before_and_after_smote(train_data, train_data_smote)
 
   # Print for debug
   # print_class_ratios(train_data_smote, "Train Data (After SMOTE)")
 
   # Build & train Random Forest model for the "y_factor" target using all columns except "y_binary"
-  model <- randomForest(y_factor ~ . - y_binary, data = train_data_smote, ntree = 1)
+  model <- randomForest(y_factor ~ . - y_binary, data = train_data, ntree = 1)
+  # model <- randomForest(y_factor ~ . - y_binary, data = train_data_smote, ntree = 1)
 
   # Predict probabilities instead of classes
   preds_prob <- predict(model, newdata = test_data, type = "prob")[, "yes"]
@@ -781,7 +767,7 @@ for (i in 1:num_folds) {
   )
 
   # ---- ROC and AUC Computation ----
-  roc_obj <- roc(test_data$y_factor, preds_prob, levels = c("no", "yes"), direction = "<")
+  roc_obj <- roc(test_data$y_factor, preds_prob, levels = c("no", "yes"))
   auc_value <- auc(roc_obj)
   auc_values <- c(auc_values, auc_value)
 
