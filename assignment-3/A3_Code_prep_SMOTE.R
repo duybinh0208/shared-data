@@ -505,7 +505,7 @@ dashboard <- (p1 + p2) / (p3 + p4) / (p5 + p6) / (p7 + p8) / (p9 + p10) +
   )
 dashboard # export with width is 2400 and tick maitain ratio
 
-# 4) SMOTE data
+# 4) Define functinons for SMOTE data
 
 apply_smote <- function(data, name, K = 5) {
   cat("\nStart SMOTE processing for", name, "\n")
@@ -577,9 +577,7 @@ visualize_data_before_and_after_smote <- function(data_before_smote, data_after_
   par(op)
 }
 
-# 5) Build & Develop RANDOM FOREST model with ROC and AUC
-
-# Define a function to draw ROC curve with multiple threshholds
+# 5) Define a function to draw ROC curve with multiple threshholds
 plot_roc_with_thresholds <- function(
   roc_obj,
   thresholds = c(0.2, 0.5, 0.8),
@@ -635,6 +633,8 @@ plot_roc_with_thresholds <- function(
 
   invisible(coords_multi) # Return invisibly for further use if needed
 }
+
+# 6) Experiment with different model types: RandomForest, LogisticRegression
 
 # Define constants
 SMOTE_BEFORE_CROSS_VALIDATIONS <- "before_cross_validaton"
