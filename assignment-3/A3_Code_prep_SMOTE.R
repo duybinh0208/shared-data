@@ -636,81 +636,111 @@ plot_roc_with_thresholds <- function(
   invisible(coords_multi) # Return invisibly for further use if needed
 }
 
-# Apply SMOTE
-# bank_model_df_z_smote <- apply_smote(bank_model_df_z, "bank_model_df_z")
-# visualize_data_before_and_after_smote(bank_model_df_z, bank_model_df_z_smote)
+do_cross_validations_with_random_forest_model <- function(source_df, data_name, smote_mode = "before_cross_validaton") {
+  # Define "K" factor for SMOTE data
+  num_of_nearest_neighbors <- 5
 
-# Prepare data to build model
-df <- bank_model_df_z
-# df <- bank_model_df_z_smote
+  if (smote_mode == "before_cross_validaton") {
+    # Apply SMOTE on the original data, before doing cross validations
+    source_df_smote <- apply_smote(source_df, data_name, K = num_of_nearest_neighbors)
+    visualize_data_before_and_after_smote(source_df_smote, source_df)
+    df <- source_df_smote
+  } else {
+    # Use the original data, don't smote it
+    df <- source_df
+  }
 
-# Fix illegal column names
-names(df) <- make.names(names(df))
+  # Fix illegal column names
+  names(df) <- make.names(names(df))
 
-# Create "y_factor" column to ensure the stratified sampling when using createFolds() function
-df$y_factor <- factor(ifelse(df$y_binary == 1, "yes", "no"), levels = c("no", "yes"))
+  # Create "y_factor" column to ensure the stratified sampling when using createFolds() function
+  df$y_factor <- factor(ifelse(df$y_binary == 1, "yes", "no"), levels = c("no", "yes"))
 
-# Create 5 folds for cross-validation + stratified sampling "y_factor"
-set.seed(123)
-num_folds <- 5
-folds <- createFolds(df$y_factor, k = num_folds)
+  # Create 5 folds for cross-validation + stratified sampling "y_factor"
+  set.seed(123)
+  num_folds <- 5
+  folds <- createFolds(df$y_factor, k = num_folds)
 
-# Initialize vector to store AUC values
-auc_values <- c()
+  # Initialize vector to store AUC values
+  auc_values <- c()
 
-cat("\n========================================")
-cat("\n======   RUN CROSS VALIDATIONS   =======")
-cat("\n========================================\n")
-# Run 5-fold Cross Validation
-for (i in 1:num_folds) {
-  fold_name = sprintf("Fold #%d", i)
-  cat(sprintf("\n====== CROSS VALIDATION FOR %s", fold_name))
+  # Run 5-fold Cross Validation
+  for (i in 1:num_folds) {
+    fold_name = sprintf("Fold #%d", i)
+    cat(sprintf("\n====== CROSS VALIDATION FOR %s", fold_name))
 
-  # Split the data into training and testing sets
-  train_data <- df[-folds[[i]], ]
-  test_data <- df[folds[[i]], ]
+    # Split the data into training and testing sets
+    train_data <- df[-folds[[i]], ]
+    test_data <- df[folds[[i]], ]
 
-  # Apply smote on train_data only
-  train_data_smote <- apply_smote(train_data, "train_data", K = 5)
-  visualize_data_before_and_after_smote(train_data, train_data_smote)
+    # Define ntree param for RandomForest model
+    num_trees <- 1
 
-  # Build & train Random Forest model for the "y_factor" target using all columns except "y_binary"
-  # model <- randomForest(y_factor ~ . - y_binary, data = train_data, ntree = 1)
-  model <- randomForest(y_factor ~ . - y_binary, data = train_data_smote, ntree = 1)
+    if (smote_mode == "in_cross_validaton") {
+      # Apply smote on train_data only
+      # In this case, the test_data should be preserved without SMOTE data to prevent data leakage
+      train_data_smote <- apply_smote(train_data, "train_data", K = num_of_nearest_neighbors)
+      visualize_data_before_and_after_smote(train_data, train_data_smote)
 
-  # Predict probabilities instead of classes
-  preds_prob <- predict(model, newdata = test_data, type = "prob")[, "yes"]
+      # Build Random Forest model for the "y_factor" target using all columns except "y_binary"
+      model <- randomForest(y_factor ~ . - y_binary, data = train_data_smote, ntree = num_trees)
+    } else {
+      # Build Random Forest model for the "y_factor" target using all columns except "y_binary"
+      model <- randomForest(y_factor ~ . - y_binary, data = train_data, ntree = num_trees)
+    }
 
-  # Convert probabilities into classes using default threshold
-  default_threshold = 0.5
-  preds_class <- ifelse(preds_prob > default_threshold, "yes", "no") |> factor(levels = c("no", "yes"))
+    # Predict probabilities instead of classes
+    preds_prob <- predict(model, newdata = test_data, type = "prob")[, "yes"]
 
-  # Confusion Matrix Evaluation
-  cm <- confusionMatrix(preds_class, test_data$y_factor, positive = "yes")
+    # Convert probabilities into classes using default threshold
+    default_threshold <- 0.5
+    preds_class <- ifelse(preds_prob > default_threshold, "yes", "no") |> factor(levels = c("no", "yes"))
 
-  # Display classification metrics
-  cat(sprintf("TEST RESULT FOR %s\n", fold_name))
-  cat(sprintf("  ConfusionMetrics: Accuracy: %.3f | Precision: %.3f | Recall: %.3f | F1: %.3f \n",
-    cm$overall["Accuracy"],
-    cm$byClass["Precision"],
-    cm$byClass["Recall"],
-    cm$byClass["F1"]
-  ))
+    # Confusion Matrix Evaluation
+    cm <- confusionMatrix(preds_class, test_data$y_factor, positive = "yes")
 
-  # ROC and AUC Computation
-  roc_obj <- roc(test_data$y_factor, preds_prob, levels = c("no", "yes"))
-  auc_value <- auc(roc_obj)
-  auc_values <- c(auc_values, auc_value)
+    # Display classification metrics
+    cat(sprintf("TEST RESULT FOR %s\n", fold_name))
+    cat(sprintf("  ConfusionMetrics: Accuracy: %.3f | Precision: %.3f | Recall: %.3f | F1: %.3f \n",
+      cm$overall["Accuracy"],
+      cm$byClass["Precision"],
+      cm$byClass["Recall"],
+      cm$byClass["F1"]
+    ))
 
-  cat(sprintf("  AUC for %s: %.3f \n", fold_name, auc_value))
+    # ROC and AUC Computation
+    roc_obj <- roc(test_data$y_factor, preds_prob, levels = c("no", "yes"))
+    auc_value <- auc(roc_obj)
+    auc_values <- c(auc_values, auc_value)
 
-  # Plot ROC Curve for this fold with multiple thresholds
-  plot_roc_with_thresholds(roc_obj, thresholds = c(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9), name=fold_name)
+    cat(sprintf("  AUC for %s: %.3f \n", fold_name, auc_value))
+
+    # Plot ROC Curve for this fold with multiple thresholds
+    plot_roc_with_thresholds(roc_obj, thresholds = c(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9), name=fold_name)
+
+    # ---- Summary of ROC and AUC across folds ----
+    cat("\n=======   SUMMARY AUC RESULTS ACROSS FOLDS   ========\n")
+    cat(sprintf("Average AUC across %d folds: %.3f \n", num_folds, mean(auc_values)))
+    cat(sprintf("Standard Deviation of AUC: %.3f \n", sd(auc_values)))
+  }
 }
 
-# ---- Summary of ROC and AUC across folds ----
-cat("\n========================================")
-cat("\n=======   SUMMARY AUC RESULTS   ========")
-cat("\n========================================\n")
-cat(sprintf("Average AUC across %d folds: %.3f \n", num_folds, mean(auc_values)))
-cat(sprintf("Standard Deviation of AUC: %.3f \n", sd(auc_values)))
+# Run cross validations with RandomForest model, also calculate ROC & AUC
+
+# Run with SMOTE data one time only, before doing the cross validations
+cat("\n===================================================================")
+cat("\n=======   EXPERIMENT WITH SMOTE BEFORE CROSS VALIDATIONS   ========")
+cat("\n===================================================================\n")
+do_cross_validations_with_random_forest_model(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = "before_cross_validaton")
+
+# Run with SMOTE data multiple times for each folds when doing the cross validations to prevent data leakage
+cat("\n======================================================================================")
+cat("\n=======   EXPERIMENT WITH SMOTE IN CROSS VALIDATIONS TO PREVENT DATA LEAKAGE  ========")
+cat("\n======================================================================================\n")
+do_cross_validations_with_random_forest_model(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = "in_cross_validaton")
+
+# Run without SMOTE data at all, to see how model perform with the original data
+cat("\n====================================================")
+cat("\n=======   EXPERIMENT WITHOUT SMOKE AT ALL   ========")
+cat("\n====================================================\n")
+do_cross_validations_with_random_forest_model(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = "")
