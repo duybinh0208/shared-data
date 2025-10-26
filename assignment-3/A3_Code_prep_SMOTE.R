@@ -708,7 +708,7 @@ excute_random_forest_model <- function(source_df, data_name, smote_mode = NO_SMO
     ))
 
     # ROC and AUC Computation
-    roc_obj <- roc(test_data$y_factor, preds_prob, levels = c("no", "yes"))
+    roc_obj <- roc(test_data$y_factor, preds_prob, levels = c("no", "yes"), direction="<")
     auc_value <- auc(roc_obj)
     auc_values <- c(auc_values, auc_value)
 
@@ -719,8 +719,8 @@ excute_random_forest_model <- function(source_df, data_name, smote_mode = NO_SMO
   }
 
   # ---- Summary of ROC and AUC across folds ----
-  cat(sprintf("Average AUC across %d folds: %.3f \n", num_folds, mean(auc_values)))
-  cat(sprintf("Standard Deviation of AUC: %.3f \n", sd(auc_values)))
+  cat(sprintf("\nAVERAGE AUC ACROSS %d FOLDS: %.3f \n", num_folds, mean(auc_values)))
+  cat(sprintf("STANDARD DEVIATION OF AUC: %.3f \n", sd(auc_values)))
 }
 
 # Run cross validations with RandomForest model, also calculate ROC & AUC
