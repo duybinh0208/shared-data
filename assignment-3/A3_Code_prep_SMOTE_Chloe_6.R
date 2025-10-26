@@ -562,6 +562,62 @@ get_top_features_by_correlation <- function(data, target_col = "y_binary", n_fea
   names(sort(abs_cors, decreasing = TRUE)[1:n_features])
 }
 
+# 5) Define a function to draw ROC curve with multiple threshholds
+plot_roc_with_thresholds <- function(
+    roc_obj,
+    thresholds = c(0.2, 0.5, 0.8),
+    name = "Unknown",
+    color_curve = "#2E86C1",
+    color_points = "red") {
+  # Validate input
+  if (missing(roc_obj) || !inherits(roc_obj, "roc")) {
+    stop("'roc_obj' must be a valid object from pROC::roc()")
+  }
+
+  # Compute coordinates for selected thresholds
+  coords_multi <- coords(
+    roc_obj,
+    x = thresholds,
+    input = "threshold",
+    ret = c("specificity", "sensitivity", "threshold")
+  )
+
+  # Convert Specificity -> FPR (False Positive Rate)
+  fpr_points <- 1 - coords_multi["specificity", ]
+  tpr_points <- coords_multi["sensitivity", ]
+
+  # Plot ROC curve
+  plot(
+    roc_obj,
+    main = sprintf("ROC Curve with Thresholds for %s", name),
+    col = color_curve,
+    lwd = 2,
+    legacy.axes = TRUE,
+    xlab = "1 - Specificity (False Positive Rate, FPR)",
+    ylab = "Sensitivity (True Positive Rate, TPR)",
+    print.thres = "best",
+    print.thres.best.method = "youden",
+    print.thres.cex = 0.8
+  )
+  abline(a = 0, b = 1, lty = 2, col = "gray")
+
+  # Add threshold points
+  points(fpr_points, tpr_points, col = color_points, pch = 19, cex = 1.3)
+
+  # Label thresholds
+  text(
+    fpr_points, tpr_points,
+    labels = paste0("t=", thresholds),
+    pos = 4, cex = 0.8, col = color_points
+  )
+
+  # Display coordinates summary
+  cat("  Threshold coordinates: \n")
+  print(round(coords_multi, 3))
+
+  invisible(coords_multi) # Return invisibly for further use if needed
+}
+
 perform_nn_cv_robust <- function(input_df,
                                  method_name = "NN_CV_Robust",
                                  n_features = 10,
@@ -602,6 +658,12 @@ perform_nn_cv_robust <- function(input_df,
                              specificity=numeric(), precision=numeric(), f1=numeric(),
                              stringsAsFactors = FALSE)
   success <- 0
+
+  # Initialize vector to store AUC values
+  auc_values <- c()
+
+  # Constant
+  model_type <- "Neural_Network"
   
   for (i in seq_len(num_folds)) {
     cat("\n------------------------------\nFold", i, "of", num_folds, "\n")
@@ -689,12 +751,23 @@ perform_nn_cv_robust <- function(input_df,
       f1          = ifelse(is.na(cm$byClass["F1"][[1]]),         0, cm$byClass["F1"][[1]])
     ))
     success <- success + 1
-    cat(sprintf("  %s ok. Acc=%.3f  Prec=%.3f  Rec=%.3f  F1=%.3f\n",
+    cat(sprintf("  %s ok. Accuracy=%.3f  Precision=%.3f  Recall=%.3f  F1=%.3f\n",
                 used_backend,
                 tail(fold_metrics$accuracy,1),
                 tail(fold_metrics$precision,1),
                 tail(fold_metrics$sensitivity,1),
                 tail(fold_metrics$f1,1)))
+
+    # ROC and AUC Computation
+    roc_obj <- roc(act, prob, levels = c("no", "yes"), direction = "<")
+    auc_value <- auc(roc_obj)
+    auc_values <- c(auc_values, auc_value)
+
+    cat(sprintf("  AUC: %.3f \n", auc_value))
+
+    # Plot ROC Curve for this fold with multiple thresholds
+    fold_name <- sprintf("Fold #%d", i)
+    plot_roc_with_thresholds(roc_obj, thresholds = c(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9), name = sprintf("%s - %s", fold_name, model_type))
   }
   
   if (!nrow(fold_metrics)) { cat("\nNo successful folds.\n"); return(NULL) }
@@ -704,6 +777,10 @@ perform_nn_cv_robust <- function(input_df,
       sprintf("\nAvg Accuracy=%.3f  Avg Prec=%.3f  Avg Sens=%.3f  Avg Spec=%.3f  Avg F1=%.3f\n",
               avg["accuracy"], avg["precision"], avg["sensitivity"], avg["specificity"], avg["f1"]))
   list(fold_metrics = fold_metrics, avg_metrics = avg, successful_folds = success, features_used = top_features)
+
+  # ---- Summary of ROC and AUC across folds ----
+  cat(sprintf("\n[%s] - AVERAGE AUC ACROSS %d FOLDS: %.3f \n", model_type, num_folds, mean(auc_values)))
+  cat(sprintf("[%s] - STANDARD DEVIATION OF AUC: %.3f \n", model_type, sd(auc_values)))
 }
 
 cat("\n========================================")
