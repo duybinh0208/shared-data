@@ -505,9 +505,18 @@ dashboard <- (p1 + p2) / (p3 + p4) / (p5 + p6) / (p7 + p8) / (p9 + p10) +
   )
 dashboard # export with width is 2400 and tick maitain ratio
 
+# Define constants to have a global settings
+SMOTE_BEFORE_CROSS_VALIDATIONS <- "before_cross_validaton"
+SMOTE_IN_CROSS_VALIDATIONS <- "in_cross_validaton"
+NO_SMOTE <- "no_smote"
+RANDOM_FOREST_MODEL <- "random_forest"
+LOGISTIC_REGRESSION_MODEL <- "logistic_regression"
+NUM_TREES <- 1 # Config the "ntree" factor for RandomForest model
+SMOTE_K <- 5 # Config the "K" factor for Smote function
+
 # 4) Define functinons for SMOTE data
 
-apply_smote <- function(data, name, K = 5) {
+apply_smote <- function(data, name) {
   cat("\nStart SMOTE processing for", name, "\n")
 
   # 1. Show BEFORE SMOTE
@@ -527,7 +536,7 @@ apply_smote <- function(data, name, K = 5) {
   y <- as.numeric(data$y_binary)
 
   # 4. Apply SMOTE with calculated dup_size
-  smote_result <- smotefamily::SMOTE(X = X, target = y, K = K, dup_size = 0)
+  smote_result <- smotefamily::SMOTE(X = X, target = y, K = SMOTE_K, dup_size = 0)
 
   # 5. Combine back together
   data_smote <- smote_result$data
@@ -636,15 +645,6 @@ plot_roc_with_thresholds <- function(
 
 # 6) Experiment with different model types: RandomForest, LogisticRegression
 
-# Define constants
-SMOTE_BEFORE_CROSS_VALIDATIONS <- "before_cross_validaton"
-SMOTE_IN_CROSS_VALIDATIONS <- "in_cross_validaton"
-NO_SMOTE <- "no_smote"
-RANDOM_FOREST_MODEL <- "random_forest"
-LOGISTIC_REGRESSION_MODEL <- "logistic_regression"
-NUM_TREES <- 1 # Config the "ntree" factor for RandomForest model
-SMOKE_K <- 5 # Config the "K" factor for Smote function
-
 do_build_model <- function(train_data, model_type = RANDOM_FOREST_MODEL) {
   if (model_type == RANDOM_FOREST_MODEL) {
     # Build Random Forest model for the "y_factor" target using all columns except "y_binary"
@@ -669,7 +669,7 @@ do_predict_model <- function(model, test_data, model_type = RANDOM_FOREST_MODEL)
 do_cross_validation_and_calcualate_auc <- function(source_df, data_name, smote_mode = NO_SMOTE, model_type = RANDOM_FOREST_MODEL) {
   if (smote_mode == SMOTE_BEFORE_CROSS_VALIDATIONS) {
     # Apply SMOTE on the original data, before doing cross validations
-    source_df_smote <- apply_smote(source_df, data_name, K = SMOKE_K)
+    source_df_smote <- apply_smote(source_df, data_name)
     visualize_data_before_and_after_smote(source_df, source_df_smote)
     df <- source_df_smote
   } else {
@@ -704,7 +704,7 @@ do_cross_validation_and_calcualate_auc <- function(source_df, data_name, smote_m
     if (smote_mode == SMOTE_IN_CROSS_VALIDATIONS) {
       # Apply smote on train_data only
       # In this case, the test_data should be preserved without SMOTE data to prevent data leakage
-      train_data_smote <- apply_smote(train_data, "train_data", K = SMOKE_K)
+      train_data_smote <- apply_smote(train_data, "train_data")
       visualize_data_before_and_after_smote(train_data, train_data_smote)
 
       # Assign back the smote result to train_data
