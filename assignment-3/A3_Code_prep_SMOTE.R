@@ -512,9 +512,10 @@ SMOTE_IN_CROSS_VALIDATIONS <- "in_cross_validaton"
 NO_SMOTE <- "no_smote"
 RANDOM_FOREST_MODEL <- "Random_Forest"
 LOGISTIC_REGRESSION_MODEL <- "Logistic_Regression"
+NEURAL_NETWORK_MAX_STEPS = 100000
 NEURAL_NETWORK_MODEL <- "Neural_Network"
 NEURAL_NETWORK_HIDDEN_LAYERS <- c(5, 3) # 2 layers, 1st layer has 5 neuron, 2nd layer has 3 neuron
-NUM_TREES <- 1 # Config the "ntree" factor for RandomForest model, using "1" for testing quickly
+RANDOM_FOREST_NUM_TREES <- 500 # Config the "ntree" factor for RandomForest model, using "1" for testing quickly
 SMOTE_K <- 5 # Config the "K" factor for Smote function
 
 # 4) Define functinons for SMOTE data
@@ -651,7 +652,7 @@ plot_roc_with_thresholds <- function(
 do_build_model <- function(train_data, model_type = RANDOM_FOREST_MODEL) {
   if (model_type == RANDOM_FOREST_MODEL) {
     # Build Random Forest model for the "y_factor" target using all columns except "y_binary"
-    model <- randomForest(y_factor ~ . - y_binary, data = train_data, ntree = NUM_TREES)
+    model <- randomForest(y_factor ~ . - y_binary, data = train_data, ntree = RANDOM_FOREST_NUM_TREES)
   } else if (model_type == LOGISTIC_REGRESSION_MODEL) {
     # Build Logistic Regression model for the "y_factor" target using all columns except "y_binary"
     model <- glm(y_factor ~ . - y_binary, data = train_data, family = "binomial")
@@ -662,6 +663,7 @@ do_build_model <- function(train_data, model_type = RANDOM_FOREST_MODEL) {
         formula = y_binary ~ . - y_factor,
         data = train_data,
         hidden = NEURAL_NETWORK_HIDDEN_LAYERS,
+        stepmax = NEURAL_NETWORK_MAX_STEPS,
         linear.output = FALSE, # Important for "sigmoid" classification
         err.fct = "ce",        # Cross-entropy
         act.fct = "logistic"   # Activate Sigmoid
