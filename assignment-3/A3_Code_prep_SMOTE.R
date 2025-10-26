@@ -716,11 +716,11 @@ excute_random_forest_model <- function(source_df, data_name, smote_mode = NO_SMO
 
     # Plot ROC Curve for this fold with multiple thresholds
     plot_roc_with_thresholds(roc_obj, thresholds = c(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9), name=fold_name)
-
-    # ---- Summary of ROC and AUC across folds ----
-    cat(sprintf("Average AUC across %d folds: %.3f \n", num_folds, mean(auc_values)))
-    cat(sprintf("Standard Deviation of AUC: %.3f \n", sd(auc_values)))
   }
+
+  # ---- Summary of ROC and AUC across folds ----
+  cat(sprintf("Average AUC across %d folds: %.3f \n", num_folds, mean(auc_values)))
+  cat(sprintf("Standard Deviation of AUC: %.3f \n", sd(auc_values)))
 }
 
 # Run cross validations with RandomForest model, also calculate ROC & AUC
