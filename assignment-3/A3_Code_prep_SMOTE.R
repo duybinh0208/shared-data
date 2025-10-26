@@ -512,9 +512,6 @@ SMOTE_IN_CROSS_VALIDATIONS <- "in_cross_validaton"
 NO_SMOTE <- "no_smote"
 RANDOM_FOREST_MODEL <- "Random_Forest"
 LOGISTIC_REGRESSION_MODEL <- "Logistic_Regression"
-NEURAL_NETWORK_MAX_STEPS = 100
-NEURAL_NETWORK_MODEL <- "Neural_Network"
-NEURAL_NETWORK_HIDDEN_LAYERS <- c(5, 3) # 2 layers, 1st layer has 5 neuron, 2nd layer has 3 neuron
 RANDOM_FOREST_NUM_TREES <- 500 # Config the "ntree" factor for RandomForest model, using "1" for testing quickly
 SMOTE_K <- 5 # Config the "K" factor for Smote function
 
@@ -655,22 +652,7 @@ do_build_model <- function(train_data, model_type = RANDOM_FOREST_MODEL) {
   } else if (model_type == LOGISTIC_REGRESSION_MODEL) {
     # Build Logistic Regression model for the "y_factor" target using all columns except "y_binary"
     model <- glm(y_factor ~ . - y_binary, data = train_data, family = "binomial")
-  } else if (model_type == NEURAL_NETWORK_MODEL) {
-      # Neural Network uses "y_binary" instead of "y_factor"
-      # Build Neural Network model for the "y_binary" target using all columns except "y_factor"
-      train_data_nn <- train_data
-      predictor_names <- setdiff(names(train_data_nn), c("y_binary", "y_factor"))
-      nn_formula <- as.formula(paste("y_binary ~ ", paste(predictor_names, collapse = " + ")))
-      model <- neuralnet::neuralnet(
-        formula = nn_formula,
-        data = train_data_nn,
-        hidden = NEURAL_NETWORK_HIDDEN_LAYERS,
-        stepmax = NEURAL_NETWORK_MAX_STEPS,
-        linear.output = FALSE, # Important for "sigmoid" classification
-        err.fct = "ce",        # Cross-entropy
-        act.fct = "logistic"   # Activate Sigmoid
-      )
-    }
+  }
   return(model)
 }
 
@@ -680,12 +662,6 @@ do_predict_model <- function(model, test_data, model_type = RANDOM_FOREST_MODEL)
     preds_prob <- predict(model, newdata = test_data, type = "prob")[, "yes"]
   } else if (model_type == LOGISTIC_REGRESSION_MODEL) {
     preds_prob <- predict(model, newdata = test_data, type = "response")
-  } else if (model_type == NEURAL_NETWORK_MODEL) {
-    test_features <- test_data
-    predictor_names <- setdiff(names(test_features), c("y_binary", "y_factor")) # Get rid of "y_binary" & "y_factor" before compute
-    test_features_nn <- test_features[, predictor_names]
-    nn_pred <- neuralnet::compute(model, covariate = test_features_nn)
-    preds_prob <- nn_pred$net.result[, 1]
   }
   return(preds_prob)
 }
@@ -808,20 +784,3 @@ do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = 
 # Run without SMOTE data at all, to see how model perform with the original data
 cat("\n[Case 03] - Run model without SMOTE data at all, to see how model perform with the original data")
 do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = NO_SMOTE, model_type = LOGISTIC_REGRESSION_MODEL)
-
-# Run cross validations with NeuralNetwork model, also calculate ROC & AUC
-cat("\n===================================================================")
-cat("\n======   EXPERIMENT NEURAL NETWORK WITH CROSS VALIDATIONS   =======")
-cat("\n===================================================================\n")
-
-# Run with SMOTE data one time only, before doing the cross validations
-cat("\n[Case 01] - Run model with SMOTE data one time only, before doing the cross validations")
-do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = SMOTE_BEFORE_CROSS_VALIDATIONS, model_type = NEURAL_NETWORK_MODEL)
-
-# Run with SMOTE data when doing the cross validations to prevent data leakage
-cat("\n[Case 02] - Run model with SMOTE data when doing the cross validations to prevent data leakage")
-do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = SMOTE_IN_CROSS_VALIDATIONS, model_type = NEURAL_NETWORK_MODEL)
-
-# Run without SMOTE data at all, to see how model perform with the original data
-cat("\n[Case 03] - Run model without SMOTE data at all, to see how model perform with the original data")
-do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = NO_SMOTE, model_type = NEURAL_NETWORK_MODEL)
