@@ -659,9 +659,13 @@ do_build_model <- function(train_data, model_type = RANDOM_FOREST_MODEL) {
   } else if (model_type == NEURAL_NETWORK_MODEL) {
       # Neural Network uses "y_binary" instead of "y_factor"
       # Build Neural Network model for the "y_binary" target using all columns except "y_factor"
+      train_data_nn <- train_data
+      predictor_names <- setdiff(names(train_data_nn), c("y_binary", "y_factor"))
+      train_data_nn[predictor_names] <- lapply(train_data_nn[predictor_names], as.numeric)
+      nn_formula <- as.formula(paste("y_binary ~ ", paste(predictor_names, collapse = " + ")))
       model <- neuralnet::neuralnet(
-        formula = y_binary ~ . - y_factor,
-        data = train_data,
+        formula = nn_formula,
+        data = train_data_nn,
         hidden = NEURAL_NETWORK_HIDDEN_LAYERS,
         stepmax = NEURAL_NETWORK_MAX_STEPS,
         linear.output = FALSE, # Important for "sigmoid" classification
