@@ -300,46 +300,45 @@ message(
 )
 
 get_top_features_by_correlation <- function(
-  data,
-  target_col = "y_binary",
-  excluded_cols = c("y_binary", "y_factor"),
-  n_features = N_TOP_FEATURES) 
-{
+    data,
+    target_col = "y_binary",
+    excluded_cols = c("y_binary", "y_factor"),
+    n_features = N_TOP_FEATURES) {
   # 1. Exclude non-predictor columns (Target binary and Target factor)
   X_data <- data[, !names(data) %in% excluded_cols, drop = FALSE]
-  
+
   # Stop if no features are left
   if (ncol(X_data) == 0) {
     stop("No predictor columns found after excluding targets.")
   }
-  
+
   # Calculate correlation between all predictors and the target
   # Assumes X_data columns are all numeric (as they are in bank_model_df_z)
   # cor() returns a vector if X_data is a matrix/data.frame of one column
   cors <- cor(X_data, data[[target_col]], use = "complete.obs")
-  
+
   # Get the absolute correlation values (treating the result as a vector)
   abs_cors <- abs(as.vector(cors))
-  
+
   # Reassign feature names to the correlation vector
   # Handles both single-column and multi-column results from cor()
   names(abs_cors) <- if (is.matrix(cors)) rownames(cors) else names(X_data)
-  
+
   # Sort and select Top N features
   sorted_cors <- sort(abs_cors, decreasing = TRUE)
   top_features <- names(sorted_cors)[1:min(n_features, length(sorted_cors))]
-  
+
   cat(sprintf("\n[Top Feature Selection] Selected %d features based on correlation with %s: \n", length(top_features), target_col))
   print(top_features)
-  
+
   return(top_features)
 }
 
 # Get top features DF
 top_features_list <- get_top_features_by_correlation(
-    data = bank_model_df_z,
-    target_col = "y_binary",
-    excluded_cols = c("y_binary", "y_factor")
+  data = bank_model_df_z,
+  target_col = "y_binary",
+  excluded_cols = c("y_binary", "y_factor")
 )
 # Create the filtered data frame (X_top + y_binary)
 bank_model_df_z_top_feature <- bank_model_df_z %>% dplyr::select(all_of(top_features_list), "y_binary")
@@ -569,7 +568,7 @@ apply_smote <- function(data, name) {
   class_counts_before <- table(data$y_binary)
   count_majority <- class_counts_before["0"] # Class "No"
   count_minority <- class_counts_before["1"] # Class "Yes"
-  inbalance_ratio_before_smote = round(count_majority / count_minority, 2)
+  inbalance_ratio_before_smote <- round(count_majority / count_minority, 2)
 
   cat("Before SMOTE:\n")
   cat("  Class 0 (NO): ", count_majority, "\n")
@@ -593,7 +592,7 @@ apply_smote <- function(data, name) {
   class_counts_after <- table(data_smote$y_binary)
   count_majority_after <- class_counts_after["0"]
   count_minority_after <- class_counts_after["1"]
-  inbalance_ratio_after_smote = round(count_majority_after / count_minority_after, 2)
+  inbalance_ratio_after_smote <- round(count_majority_after / count_minority_after, 2)
 
   cat("After SMOTE:\n")
   cat("  Class 0 (NO): ", count_majority_after, "\n")
@@ -633,12 +632,11 @@ visualize_data_before_and_after_smote <- function(data_before_smote, data_after_
 
 # 5) Define a function to draw ROC curve with multiple threshholds
 plot_roc_with_thresholds <- function(
-  roc_obj,
-  thresholds = c(0.2, 0.5, 0.8),
-  name = "Unknown",
-  color_curve = "#2E86C1",
-  color_points = "red") 
-{
+    roc_obj,
+    thresholds = c(0.2, 0.5, 0.8),
+    name = "Unknown",
+    color_curve = "#2E86C1",
+    color_points = "red") {
   # Validate input
   if (missing(roc_obj) || !inherits(roc_obj, "roc")) {
     stop("'roc_obj' must be a valid object from pROC::roc()")
@@ -663,7 +661,7 @@ plot_roc_with_thresholds <- function(
     col = color_curve,
     lwd = 2,
     legacy.axes = TRUE,
-    xlab = "1 - Specificity (False Positive Rate, FPR)", 
+    xlab = "1 - Specificity (False Positive Rate, FPR)",
     ylab = "Sensitivity (True Positive Rate, TPR)",
     print.thres = "best",
     print.thres.best.method = "youden",
@@ -739,7 +737,7 @@ do_cross_validation_and_calcualate_auc <- function(source_df, data_name, smote_m
 
   # Run 5-fold Cross Validation
   for (i in 1:num_folds) {
-    fold_name = sprintf("Fold #%d", i)
+    fold_name <- sprintf("Fold #%d", i)
     cat(sprintf("\n[%s] - RUN CROSS VALIDATION FOR %s", model_type, fold_name))
 
     # Split the data into training and testing sets
@@ -773,7 +771,8 @@ do_cross_validation_and_calcualate_auc <- function(source_df, data_name, smote_m
 
     # Display classification metrics
     cat(sprintf("\n[%s] - TEST RESULT FOR %s with default threshold = %.2f \n", model_type, fold_name, default_threshold))
-    cat(sprintf("  Accuracy: %.3f | Precision: %.3f | Recall: %.3f | F1: %.3f \n",
+    cat(sprintf(
+      "  Accuracy: %.3f | Precision: %.3f | Recall: %.3f | F1: %.3f \n",
       cm$overall["Accuracy"],
       cm$byClass["Precision"],
       cm$byClass["Recall"],
@@ -781,14 +780,14 @@ do_cross_validation_and_calcualate_auc <- function(source_df, data_name, smote_m
     ))
 
     # ROC and AUC Computation
-    roc_obj <- roc(test_data$y_factor, preds_prob, levels = c("no", "yes"), direction="<")
+    roc_obj <- roc(test_data$y_factor, preds_prob, levels = c("no", "yes"), direction = "<")
     auc_value <- auc(roc_obj)
     auc_values <- c(auc_values, auc_value)
 
     cat(sprintf("  AUC: %.3f \n", auc_value))
 
     # Plot ROC Curve for this fold with multiple thresholds
-    plot_roc_with_thresholds(roc_obj, thresholds = c(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9), name=sprintf("%s - %s", fold_name, model_type))
+    plot_roc_with_thresholds(roc_obj, thresholds = c(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9), name = sprintf("%s - %s", fold_name, model_type))
   }
 
   # ---- Summary of ROC and AUC across folds ----
@@ -846,3 +845,5 @@ do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z_top_feature, 
 
 cat("\n[Case 06] - Run model for top features without SMOTE data at all, to see how model perform with the original data")
 do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z_top_feature, data_name = "bank_model_df_z_top_feature", smote_mode = NO_SMOTE, model_type = LOGISTIC_REGRESSION_MODEL)
+
+cat("\nDone\n")
