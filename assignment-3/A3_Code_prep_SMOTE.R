@@ -5,7 +5,7 @@
 # install.packages(c(
 #   "tidyverse", "ggplot2", "ggcorrplot", "gridExtra", "patchwork", "scales",
 #   "caret", "smotefamily", "randomForest", "rpart", "rpart.plot", "e1071",
-#   "nnet", "pROC", "RColorBrewer", "dplyr", "randomForest"
+#   "nnet", "pROC", "RColorBrewer", "dplyr", "randomForest", "caTools", "neuralnet"
 # ))
 
 # Load required libraries
@@ -25,6 +25,7 @@ library(nnet) # For neural networks
 library(pROC)
 library(RColorBrewer)
 library(dplyr)
+library(neuralnet)
 
 # Custom theme (applies globally)
 
@@ -505,13 +506,15 @@ dashboard <- (p1 + p2) / (p3 + p4) / (p5 + p6) / (p7 + p8) / (p9 + p10) +
   )
 dashboard # export with width is 2400 and tick maitain ratio
 
-# Define constants to have a global settings
+# Define constants to have a global setting
 SMOTE_BEFORE_CROSS_VALIDATIONS <- "before_cross_validaton"
 SMOTE_IN_CROSS_VALIDATIONS <- "in_cross_validaton"
 NO_SMOTE <- "no_smote"
 RANDOM_FOREST_MODEL <- "Random_Forest"
 LOGISTIC_REGRESSION_MODEL <- "Logistic_Regression"
-NUM_TREES <- 1 # Config the "ntree" factor for RandomForest model
+NEURAL_NETWORK_MODEL <- "Neural_Network"
+NEURAL_NETWORK_HIDDEN_LAYERS <- c(5, 3) # 2 layers, 1st layer has 5 neuron, 2nd layer has 3 neuron
+NUM_TREES <- 1 # Config the "ntree" factor for RandomForest model, using "1" for testing quickly
 SMOTE_K <- 5 # Config the "K" factor for Smote function
 
 # 4) Define functinons for SMOTE data
@@ -652,7 +655,18 @@ do_build_model <- function(train_data, model_type = RANDOM_FOREST_MODEL) {
   } else if (model_type == LOGISTIC_REGRESSION_MODEL) {
     # Build Logistic Regression model for the "y_factor" target using all columns except "y_binary"
     model <- glm(y_factor ~ . - y_binary, data = train_data, family = "binomial")
-  }
+  } else if (model_type == NEURAL_NETWORK_MODEL) {
+      # Neural Network uses "y_binary" instead of "y_factor"
+      # Build Neural Network model for the "y_binary" target using all columns except "y_factor"
+      model <- neuralnet::neuralnet(
+        formula = y_binary ~ . - y_factor,
+        data = train_data,
+        hidden = NEURAL_NETWORK_HIDDEN_LAYERS,
+        linear.output = FALSE, # Important for "sigmoid" classification
+        err.fct = "ce",        # Cross-entropy
+        act.fct = "logistic"   # Activate Sigmoid
+      )
+    }
   return(model)
 }
 
@@ -662,7 +676,12 @@ do_predict_model <- function(model, test_data, model_type = RANDOM_FOREST_MODEL)
     preds_prob <- predict(model, newdata = test_data, type = "prob")[, "yes"]
   } else if (model_type == LOGISTIC_REGRESSION_MODEL) {
     preds_prob <- predict(model, newdata = test_data, type = "response")
-  }
+  } else if (model_type == NEURAL_NETWORK_MODEL) {
+      # Get rid of "y_binary" & "y_factor" before compute
+      test_features <- test_data[, setdiff(names(test_data), c("y_binary", "y_factor"))]
+      nn_pred <- neuralnet::compute(model, covariate = test_features)
+      preds_prob <- nn_pred$net.result[, 1] # Lấy giá trị xác suất đầu tiên
+    }
   return(preds_prob)
 }
 
@@ -749,36 +768,53 @@ do_cross_validation_and_calcualate_auc <- function(source_df, data_name, smote_m
   cat(sprintf("[%s] - STANDARD DEVIATION OF AUC: %.3f \n", model_type, sd(auc_values)))
 }
 
-# Run cross validations with RandomForest model, also calculate ROC & AUC
+# # Run cross validations with RandomForest model, also calculate ROC & AUC
+# cat("\n===================================================================")
+# cat("\n=======   EXPERIMENT RANDOM FOREST WITH CROSS VALIDATIONS   =======")
+# cat("\n===================================================================\n")
+
+# # Run with SMOTE data one time only, before doing the cross validations
+# cat("\n[Case 01] - Run model with SMOTE data one time only, before doing the cross validations")
+# do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = SMOTE_BEFORE_CROSS_VALIDATIONS, model_type = RANDOM_FOREST_MODEL)
+
+# # Run with SMOTE data when doing the cross validations to prevent data leakage
+# cat("\n[Case 02] - Run model with SMOTE data when doing the cross validations to prevent data leakage")
+# do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = SMOTE_IN_CROSS_VALIDATIONS, model_type = RANDOM_FOREST_MODEL)
+
+# # Run without SMOTE data at all, to see how model perform with the original data
+# cat("\n[Case 03] - Run model without SMOTE data at all, to see how model perform with the original data")
+# do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = NO_SMOTE, model_type = RANDOM_FOREST_MODEL)
+
+# # Run cross validations with LogisticRegression model, also calculate ROC & AUC
+# cat("\n===================================================================")
+# cat("\n====   EXPERIMENT REGRESSION LOGISTIC WITH CROSS VALIDATIONS   ====")
+# cat("\n===================================================================\n")
+
+# # Run with SMOTE data one time only, before doing the cross validations
+# cat("\n[Case 01] - Run model with SMOTE data one time only, before doing the cross validations")
+# do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = SMOTE_BEFORE_CROSS_VALIDATIONS, model_type = LOGISTIC_REGRESSION_MODEL)
+
+# # Run with SMOTE data when doing the cross validations to prevent data leakage
+# cat("\n[Case 02] - Run model with SMOTE data when doing the cross validations to prevent data leakage")
+# do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = SMOTE_IN_CROSS_VALIDATIONS, model_type = LOGISTIC_REGRESSION_MODEL)
+
+# # Run without SMOTE data at all, to see how model perform with the original data
+# cat("\n[Case 03] - Run model without SMOTE data at all, to see how model perform with the original data")
+# do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = NO_SMOTE, model_type = LOGISTIC_REGRESSION_MODEL)
+
+# Run cross validations with NeuralNetwork model, also calculate ROC & AUC
 cat("\n===================================================================")
-cat("\n=======   EXPERIMENT RANDOM FOREST WITH CROSS VALIDATIONS   =======")
+cat("\n======   EXPERIMENT NEURAL NETWORK WITH CROSS VALIDATIONS   =======")
 cat("\n===================================================================\n")
 
 # Run with SMOTE data one time only, before doing the cross validations
 cat("\n[Case 01] - Run model with SMOTE data one time only, before doing the cross validations")
-do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = SMOTE_BEFORE_CROSS_VALIDATIONS, model_type = RANDOM_FOREST_MODEL)
+do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = SMOTE_BEFORE_CROSS_VALIDATIONS, model_type = NEURAL_NETWORK_MODEL)
 
 # Run with SMOTE data when doing the cross validations to prevent data leakage
 cat("\n[Case 02] - Run model with SMOTE data when doing the cross validations to prevent data leakage")
-do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = SMOTE_IN_CROSS_VALIDATIONS, model_type = RANDOM_FOREST_MODEL)
+do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = SMOTE_IN_CROSS_VALIDATIONS, model_type = NEURAL_NETWORK_MODEL)
 
 # Run without SMOTE data at all, to see how model perform with the original data
 cat("\n[Case 03] - Run model without SMOTE data at all, to see how model perform with the original data")
-do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = NO_SMOTE, model_type = RANDOM_FOREST_MODEL)
-
-# Run cross validations with LogisticRegression model, also calculate ROC & AUC
-cat("\n===================================================================")
-cat("\n====   EXPERIMENT REGRESSION LOGISTIC WITH CROSS VALIDATIONS   ====")
-cat("\n===================================================================\n")
-
-# Run with SMOTE data one time only, before doing the cross validations
-cat("\n[Case 01] - Run model with SMOTE data one time only, before doing the cross validations")
-do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = SMOTE_BEFORE_CROSS_VALIDATIONS, model_type = LOGISTIC_REGRESSION_MODEL)
-
-# Run with SMOTE data when doing the cross validations to prevent data leakage
-cat("\n[Case 02] - Run model with SMOTE data when doing the cross validations to prevent data leakage")
-do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = SMOTE_IN_CROSS_VALIDATIONS, model_type = LOGISTIC_REGRESSION_MODEL)
-
-# Run without SMOTE data at all, to see how model perform with the original data
-cat("\n[Case 03] - Run model without SMOTE data at all, to see how model perform with the original data")
-do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = NO_SMOTE, model_type = LOGISTIC_REGRESSION_MODEL)
+do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = NO_SMOTE, model_type = NEURAL_NETWORK_MODEL)
