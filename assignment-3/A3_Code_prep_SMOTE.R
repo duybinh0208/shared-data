@@ -512,7 +512,7 @@ SMOTE_IN_CROSS_VALIDATIONS <- "in_cross_validaton"
 NO_SMOTE <- "no_smote"
 RANDOM_FOREST_MODEL <- "Random_Forest"
 LOGISTIC_REGRESSION_MODEL <- "Logistic_Regression"
-NEURAL_NETWORK_MAX_STEPS = 100000
+NEURAL_NETWORK_MAX_STEPS = 100
 NEURAL_NETWORK_MODEL <- "Neural_Network"
 NEURAL_NETWORK_HIDDEN_LAYERS <- c(5, 3) # 2 layers, 1st layer has 5 neuron, 2nd layer has 3 neuron
 RANDOM_FOREST_NUM_TREES <- 500 # Config the "ntree" factor for RandomForest model, using "1" for testing quickly
@@ -661,7 +661,6 @@ do_build_model <- function(train_data, model_type = RANDOM_FOREST_MODEL) {
       # Build Neural Network model for the "y_binary" target using all columns except "y_factor"
       train_data_nn <- train_data
       predictor_names <- setdiff(names(train_data_nn), c("y_binary", "y_factor"))
-      train_data_nn[predictor_names] <- lapply(train_data_nn[predictor_names], as.numeric)
       nn_formula <- as.formula(paste("y_binary ~ ", paste(predictor_names, collapse = " + ")))
       model <- neuralnet::neuralnet(
         formula = nn_formula,
@@ -683,11 +682,12 @@ do_predict_model <- function(model, test_data, model_type = RANDOM_FOREST_MODEL)
   } else if (model_type == LOGISTIC_REGRESSION_MODEL) {
     preds_prob <- predict(model, newdata = test_data, type = "response")
   } else if (model_type == NEURAL_NETWORK_MODEL) {
-      # Get rid of "y_binary" & "y_factor" before compute
-      test_features <- test_data[, setdiff(names(test_data), c("y_binary", "y_factor"))]
-      nn_pred <- neuralnet::compute(model, covariate = test_features)
-      preds_prob <- nn_pred$net.result[, 1] # Lấy giá trị xác suất đầu tiên
-    }
+    test_features <- test_data
+    predictor_names <- setdiff(names(test_features), c("y_binary", "y_factor")) # Get rid of "y_binary" & "y_factor" before compute
+    test_features_nn <- test_features[, predictor_names]
+    nn_pred <- neuralnet::compute(model, covariate = test_features_nn)
+    preds_prob <- nn_pred$net.result[, 1]
+  }
   return(preds_prob)
 }
 
