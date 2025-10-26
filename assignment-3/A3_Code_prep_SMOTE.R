@@ -507,118 +507,45 @@ dashboard # export with width is 2400 and tick maitain ratio
 
 # 4) SMOTE data
 
-cat("\n========================================")
-cat("\n==========   APPLYING SMOTE   ==========")
-cat("\n========================================\n")
-
-# Function to apply SMOTE for bank_model_df_z (target = y_binary)
-apply_smote <- function(data, name) {
-  cat("\nProcessing: ", name, "\n")
-
-  # Show BEFORE SMOTE
-  class_counts_before <- table(data$y_binary)
-  cat("  BEFORE SMOTE:\n")
-  cat("    Class 0: ", class_counts_before[1], "\n")
-  cat("    Class 1: ", class_counts_before[2], "\n")
-  cat("    Imbalance ratio: ", round(class_counts_before[1] / class_counts_before[2], 2), ": 1\n")
-
-  # Separate features and target
-  X <- data[, !names(data) %in% c("y_binary"), drop = FALSE]
-
-  # Ensure numeric 0/1
-  X <- as.data.frame(lapply(X, as.numeric))
-  y <- as.numeric(data$y_binary)
-
-  # Apply SMOTE (K=5 nearest neighbors) on FULL data
-  smote_result <- smotefamily::SMOTE(X = X, target = y, K = 5, dup_size = 0)
-
-  # Combine back together
-  data_smote <- smote_result$data
-  colnames(data_smote)[ncol(data_smote)] <- "y_binary"
-
-  # Ensure 0/1 numeric for target (SMOTE may return numeric not exactly 0/1)
-  data_smote$y_binary <- as.numeric(data_smote$y_binary)
-  data_smote$y_binary <- ifelse(data_smote$y_binary > 0.5, 1, 0)
-
-  # Ensure "y_factor"
-  # data_smote$y_factor <- factor(
-  #   ifelse(data_smote$y_binary > 0.5, "yes", "no"),
-  #   levels = c("no", "yes")
-  # )
-
-  # Show AFTER SMOTE
-  class_counts_after <- table(data_smote$y_binary)
-  cat("  AFTER SMOTE:\n")
-  cat("    Class 0: ", class_counts_after[1], "\n")
-  cat("    Class 1: ", class_counts_after[2], "\n")
-  cat("    Total samples:", nrow(data_smote), "(was: ", nrow(data), ")\n")
-  cat("    Imbalance ratio:", round(class_counts_after[1] / class_counts_after[2], 2), ": 1\n")
-
-  return(as.data.frame(data_smote, check.names = FALSE))
-}
-
-apply_smote_tuned <- function(data, name, target_minority_ratio = 1.0, K = 5) {
-  cat("\nProcessing: ", name, "\n")
+apply_smote <- function(data, name, K = 5) {
+  cat("\nStart SMOTE processing for", name, "\n")
 
   # 1. Show BEFORE SMOTE
   class_counts_before <- table(data$y_binary)
-  count_majority <- class_counts_before["0"] # Lớp NO
-  count_minority <- class_counts_before["1"] # Lớp YES
+  count_majority <- class_counts_before["0"] # Class "No"
+  count_minority <- class_counts_before["1"] # Class "Yes"
+  inbalance_ratio_before_smote = round(count_majority / count_minority, 2)
 
-  cat("BEFORE SMOTE:\n")
+  cat("Before SMOTE:\n")
   cat("  Class 0 (NO): ", count_majority, "\n")
   cat("  Class 1 (YES): ", count_minority, "\n")
-  cat("  Imbalance ratio (NO/YES): ", round(count_majority / count_minority, 2), ": 1\n")
-
-  # 2. TÍNH TOÁN DUP_SIZE DỰA TRÊN TỈ LỆ MONG MUỐN (target_minority_ratio)
-
-  # Số lượng mẫu thiểu số mong muốn (target_minority_ratio * count_majority)
-  target_minority_count <- count_majority * target_minority_ratio
-
-  # dup_size = (Số lượng mong muốn / Số lượng hiện tại) - 1
-  if (target_minority_count <= count_minority) {
-    # Nếu tỉ lệ mong muốn không yêu cầu tăng thêm, không tạo mẫu mới
-    dup_size_param <- 0
-  } else {
-    dup_size_param <- (target_minority_count / count_minority) - 1
-  }
-
-  cat(paste0(" -> Target Minority Ratio (YES/NO): ", target_minority_ratio, ":1\n"))
-  cat(paste0(" -> SMOTE dup_size parameter calculated: ", round(dup_size_param, 4), "\n"))
+  cat("  Imbalance ratio (NO/YES):", inbalance_ratio_before_smote, ": 1\n")
 
   # 3. Separate features and target
-  # Loại trừ y_binary và y_factor
   X <- data[, !names(data) %in% c("y_binary", "y_factor"), drop = FALSE]
   X <- as.data.frame(lapply(X, as.numeric))
   y <- as.numeric(data$y_binary)
 
   # 4. Apply SMOTE with calculated dup_size
-  smote_result <- smotefamily::SMOTE(X = X, target = y, K = K, dup_size = dup_size_param)
+  smote_result <- smotefamily::SMOTE(X = X, target = y, K = K, dup_size = 0)
 
   # 5. Combine back together
   data_smote <- smote_result$data
   colnames(data_smote)[ncol(data_smote)] <- "y_binary"
-
-  # Ensure 0/1 numeric for target
-  data_smote$y_binary <- as.numeric(data_smote$y_binary)
-  data_smote$y_binary <- ifelse(data_smote$y_binary > 0.5, 1, 0)
-
-  # Ensure "y_factor"
-  data_smote$y_factor <- factor(
-    ifelse(data_smote$y_binary > 0.5, "yes", "no"),
-    levels = c("no", "yes")
-  )
+  data_smote$y_binary <- as.numeric(data_smote$y_binary) # Ensure 0/1 numeric for target
+  data_smote$y_factor <- factor(data_smote$y_binary, levels = c(0, 1), labels = c("no", "yes")) # Ensure "y_factor"
 
   # 6. Show AFTER SMOTE
   class_counts_after <- table(data_smote$y_binary)
   count_majority_after <- class_counts_after["0"]
   count_minority_after <- class_counts_after["1"]
+  inbalance_ratio_after_smote = round(count_majority_after / count_minority_after, 2)
 
-  cat(" AFTER SMOTE:\n")
+  cat("After SMOTE:\n")
   cat("  Class 0 (NO): ", count_majority_after, "\n")
   cat("  Class 1 (YES): ", count_minority_after, "\n")
-  cat("  Total samples:", nrow(data_smote), "(was: ", nrow(data), ")\n")
-  cat("  Imbalance ratio (NO/YES):", round(count_majority_after / count_minority_after, 2), ": 1\n")
+  cat("  Total samples:", nrow(data_smote), "(was:", nrow(data), ")\n")
+  cat("  Imbalance ratio (NO/YES):", inbalance_ratio_after_smote, ": 1\n")
 
   return(as.data.frame(data_smote, check.names = FALSE))
 }
@@ -653,11 +580,13 @@ visualize_data_before_and_after_smote <- function(data_before_smote, data_after_
 # 5) Build & Develop RANDOM FOREST model with ROC and AUC
 
 # Define a function to draw ROC curve with multiple threshholds
-plot_roc_with_thresholds <- function(roc_obj,
-                                     thresholds = c(0.2, 0.5, 0.8),
-                                     title = "ROC Curve with Thresholds",
-                                     color_curve = "#2E86C1",
-                                     color_points = "red") {
+plot_roc_with_thresholds <- function(
+  roc_obj,
+  thresholds = c(0.2, 0.5, 0.8),
+  name = "Unknown",
+  color_curve = "#2E86C1",
+  color_points = "red") 
+{
   # Validate input
   if (missing(roc_obj) || !inherits(roc_obj, "roc")) {
     stop("'roc_obj' must be a valid object from pROC::roc()")
@@ -671,55 +600,57 @@ plot_roc_with_thresholds <- function(roc_obj,
     ret = c("specificity", "sensitivity", "threshold")
   )
 
-  # Convert Specificity → FPR (False Positive Rate)
+  # Convert Specificity -> FPR (False Positive Rate)
   fpr_points <- 1 - coords_multi["specificity", ]
   tpr_points <- coords_multi["sensitivity", ]
 
-  # ---- Plot ROC curve ----
+  # Plot ROC curve
   plot(
     roc_obj,
-    main = title,
+    main = sprintf("ROC Curve with Thresholds for %s", name),
     col = color_curve,
     lwd = 2,
     legacy.axes = TRUE,
-    print.thres = "best", # Chỉ in ngưỡng tối ưu (ví dụ: tối đa hóa F1)
-    print.thres.best.method = "youden", # Hoặc "closest.topleft"
+    xlab = "1 - Specificity (False Positive Rate, FPR)", 
+    ylab = "Sensitivity (True Positive Rate, TPR)",
+    print.thres = "best",
+    print.thres.best.method = "youden",
     print.thres.cex = 0.8
   )
   abline(a = 0, b = 1, lty = 2, col = "gray")
 
-  # ---- Add threshold points ----
+  # Add threshold points
   points(fpr_points, tpr_points, col = color_points, pch = 19, cex = 1.3)
 
-  # ---- Label thresholds ----
+  # Label thresholds
   text(
     fpr_points, tpr_points,
     labels = paste0("t=", thresholds),
     pos = 4, cex = 0.8, col = color_points
   )
 
-  # ---- Display coordinates summary ----
-  cat("\nThreshold coordinates:\n")
+  # Display coordinates summary
+  cat("  Threshold coordinates: \n")
   print(round(coords_multi, 3))
 
   invisible(coords_multi) # Return invisibly for further use if needed
 }
 
 # Apply SMOTE
-bank_model_df_z_smote <- apply_smote(bank_model_df_z, "bank_model_df_z")
-visualize_data_before_and_after_smote(bank_model_df_z, bank_model_df_z_smote)
+# bank_model_df_z_smote <- apply_smote(bank_model_df_z, "bank_model_df_z")
+# visualize_data_before_and_after_smote(bank_model_df_z, bank_model_df_z_smote)
 
 # Prepare data to build model
-# df <- bank_model_df_z
-df <- bank_model_df_z_smote
+df <- bank_model_df_z
+# df <- bank_model_df_z_smote
 
 # Fix illegal column names
 names(df) <- make.names(names(df))
 
-# Create "y_factor" column for stratified sampling and classification target
+# Create "y_factor" column to ensure the stratified sampling when using createFolds() function
 df$y_factor <- factor(ifelse(df$y_binary == 1, "yes", "no"), levels = c("no", "yes"))
 
-# Create 5 folds for cross-validation
+# Create 5 folds for cross-validation + stratified sampling "y_factor"
 set.seed(123)
 num_folds <- 5
 folds <- createFolds(df$y_factor, k = num_folds)
@@ -727,29 +658,25 @@ folds <- createFolds(df$y_factor, k = num_folds)
 # Initialize vector to store AUC values
 auc_values <- c()
 
+cat("\n========================================")
+cat("\n======   RUN CROSS VALIDATIONS   =======")
+cat("\n========================================\n")
 # Run 5-fold Cross Validation
 for (i in 1:num_folds) {
-  cat("\n==============================\nFold", i, "\n")
+  fold_name = sprintf("Fold #%d", i)
+  cat(sprintf("\n====== CROSS VALIDATION FOR %s", fold_name))
 
   # Split the data into training and testing sets
   train_data <- df[-folds[[i]], ]
   test_data <- df[folds[[i]], ]
 
-  # Print for debug
-  # print_class_ratios(train_data, "Train Data (Before SMOTE)")
-  # print_class_ratios(test_data, "Test Data")
-
   # Apply smote on train_data only
-  # train_data_smote <- apply_smote(train_data, "train_data")
-  # train_data_smote <- apply_smote_tuned(train_data, "train_data", target_minority_ratio = 1, K = 3)
-  # visualize_data_before_and_after_smote(train_data, train_data_smote)
-
-  # Print for debug
-  # print_class_ratios(train_data_smote, "Train Data (After SMOTE)")
+  train_data_smote <- apply_smote(train_data, "train_data", K = 5)
+  visualize_data_before_and_after_smote(train_data, train_data_smote)
 
   # Build & train Random Forest model for the "y_factor" target using all columns except "y_binary"
-  model <- randomForest(y_factor ~ . - y_binary, data = train_data, ntree = 1)
-  # model <- randomForest(y_factor ~ . - y_binary, data = train_data_smote, ntree = 1)
+  # model <- randomForest(y_factor ~ . - y_binary, data = train_data, ntree = 1)
+  model <- randomForest(y_factor ~ . - y_binary, data = train_data_smote, ntree = 1)
 
   # Predict probabilities instead of classes
   preds_prob <- predict(model, newdata = test_data, type = "prob")[, "yes"]
@@ -762,29 +689,28 @@ for (i in 1:num_folds) {
   cm <- confusionMatrix(preds_class, test_data$y_factor, positive = "yes")
 
   # Display classification metrics
-  cat("\n==============================\nTest output from Fold", i, "\n")
-  cat(
-    "Accuracy:", round(cm$overall["Accuracy"], 3),
-    "| Precision:", round(cm$byClass["Precision"], 3),
-    "| Recall:", round(cm$byClass["Recall"], 3),
-    "| F1:", round(cm$byClass["F1"], 3), "\n"
-  )
+  cat(sprintf("TEST RESULT FOR %s\n", fold_name))
+  cat(sprintf("  ConfusionMetrics: Accuracy: %.3f | Precision: %.3f | Recall: %.3f | F1: %.3f \n",
+    cm$overall["Accuracy"],
+    cm$byClass["Precision"],
+    cm$byClass["Recall"],
+    cm$byClass["F1"]
+  ))
 
-  # ---- ROC and AUC Computation ----
+  # ROC and AUC Computation
   roc_obj <- roc(test_data$y_factor, preds_prob, levels = c("no", "yes"))
   auc_value <- auc(roc_obj)
   auc_values <- c(auc_values, auc_value)
 
-  cat("AUC:", round(auc_value, 4), "\n")
+  cat(sprintf("  AUC for %s: %.3f \n", fold_name, auc_value))
 
-  # Plot ROC Curve for this fold
-  plot_roc_with_thresholds(roc_obj, thresholds = c(0.3, 0.5, 0.7))
+  # Plot ROC Curve for this fold with multiple thresholds
+  plot_roc_with_thresholds(roc_obj, thresholds = c(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9), name=fold_name)
 }
 
 # ---- Summary of ROC and AUC across folds ----
-cat("\n==============================\n")
-cat("Average AUC across 5 folds:", round(mean(auc_values), 4), "\n")
-cat("Standard Deviation of AUC:", round(sd(auc_values), 4), "\n")
-
-
-cat("\nDone.\n")
+cat("\n========================================")
+cat("\n=======   SUMMARY AUC RESULTS   ========")
+cat("\n========================================\n")
+cat(sprintf("Average AUC across %d folds: %.3f \n", num_folds, mean(auc_values)))
+cat(sprintf("Standard Deviation of AUC: %.3f \n", sd(auc_values)))
