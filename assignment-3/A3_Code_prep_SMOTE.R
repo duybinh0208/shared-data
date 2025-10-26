@@ -509,8 +509,8 @@ dashboard # export with width is 2400 and tick maitain ratio
 SMOTE_BEFORE_CROSS_VALIDATIONS <- "before_cross_validaton"
 SMOTE_IN_CROSS_VALIDATIONS <- "in_cross_validaton"
 NO_SMOTE <- "no_smote"
-RANDOM_FOREST_MODEL <- "random_forest"
-LOGISTIC_REGRESSION_MODEL <- "logistic_regression"
+RANDOM_FOREST_MODEL <- "Random_Forest"
+LOGISTIC_REGRESSION_MODEL <- "Logistic_Regression"
 NUM_TREES <- 1 # Config the "ntree" factor for RandomForest model
 SMOTE_K <- 5 # Config the "K" factor for Smote function
 
@@ -694,7 +694,7 @@ do_cross_validation_and_calcualate_auc <- function(source_df, data_name, smote_m
   # Run 5-fold Cross Validation
   for (i in 1:num_folds) {
     fold_name = sprintf("Fold #%d", i)
-    cat(sprintf("\nRUN CROSS VALIDATION FOR %s", fold_name))
+    cat(sprintf("\n[%s] - RUN CROSS VALIDATION FOR %s", model_type, fold_name))
 
     # Split the data into training and testing sets
     train_data <- df[-folds[[i]], ]
@@ -725,8 +725,8 @@ do_cross_validation_and_calcualate_auc <- function(source_df, data_name, smote_m
     cm <- confusionMatrix(preds_class, test_data$y_factor, positive = "yes")
 
     # Display classification metrics
-    cat(sprintf("\nTEST RESULT FOR %s\n", fold_name))
-    cat(sprintf("  ConfusionMetrics: Accuracy: %.3f | Precision: %.3f | Recall: %.3f | F1: %.3f \n",
+    cat(sprintf("\n[%s] - TEST RESULT FOR %s with default threshold = %.2f \n", model_type, fold_name, default_threshold))
+    cat(sprintf("  Accuracy: %.3f | Precision: %.3f | Recall: %.3f | F1: %.3f \n",
       cm$overall["Accuracy"],
       cm$byClass["Precision"],
       cm$byClass["Recall"],
@@ -738,15 +738,15 @@ do_cross_validation_and_calcualate_auc <- function(source_df, data_name, smote_m
     auc_value <- auc(roc_obj)
     auc_values <- c(auc_values, auc_value)
 
-    cat(sprintf("  AUC for %s: %.3f \n", fold_name, auc_value))
+    cat(sprintf("  AUC: %.3f \n", auc_value))
 
     # Plot ROC Curve for this fold with multiple thresholds
-    plot_roc_with_thresholds(roc_obj, thresholds = c(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9), name=fold_name)
+    plot_roc_with_thresholds(roc_obj, thresholds = c(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9), name=sprintf("%s - %s", fold_name, model_type))
   }
 
   # ---- Summary of ROC and AUC across folds ----
-  cat(sprintf("\nAVERAGE AUC ACROSS %d FOLDS: %.3f \n", num_folds, mean(auc_values)))
-  cat(sprintf("STANDARD DEVIATION OF AUC: %.3f \n", sd(auc_values)))
+  cat(sprintf("\n[%s] - AVERAGE AUC ACROSS %d FOLDS: %.3f \n", model_type, num_folds, mean(auc_values)))
+  cat(sprintf("[%s] - STANDARD DEVIATION OF AUC: %.3f \n", model_type, sd(auc_values)))
 }
 
 # Run cross validations with RandomForest model, also calculate ROC & AUC
@@ -755,15 +755,15 @@ cat("\n=======   EXPERIMENT RANDOM FOREST WITH CROSS VALIDATIONS   =======")
 cat("\n===================================================================\n")
 
 # Run with SMOTE data one time only, before doing the cross validations
-cat("\n[RandomForest] model with SMOTE data one time only, before doing the cross validations")
+cat("\n[Case 01] - Run model with SMOTE data one time only, before doing the cross validations")
 do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = SMOTE_BEFORE_CROSS_VALIDATIONS, model_type = RANDOM_FOREST_MODEL)
 
-# Run with SMOTE data multiple times for each folds when doing the cross validations to prevent data leakage
-cat("\n[RandomForest] model with SMOTE data multiple times for each folds when doing the cross validations to prevent data leakage")
+# Run with SMOTE data when doing the cross validations to prevent data leakage
+cat("\n[Case 02] - Run model with SMOTE data when doing the cross validations to prevent data leakage")
 do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = SMOTE_IN_CROSS_VALIDATIONS, model_type = RANDOM_FOREST_MODEL)
 
 # Run without SMOTE data at all, to see how model perform with the original data
-cat("\n[RandomForest] model without SMOTE data at all, to see how model perform with the original data")
+cat("\n[Case 03] - Run model without SMOTE data at all, to see how model perform with the original data")
 do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = NO_SMOTE, model_type = RANDOM_FOREST_MODEL)
 
 # Run cross validations with LogisticRegression model, also calculate ROC & AUC
@@ -772,13 +772,13 @@ cat("\n====   EXPERIMENT REGRESSION LOGISTIC WITH CROSS VALIDATIONS   ====")
 cat("\n===================================================================\n")
 
 # Run with SMOTE data one time only, before doing the cross validations
-cat("\n[LogisticRegression] model with SMOTE data one time only, before doing the cross validations")
+cat("\n[Case 01] - Run model with SMOTE data one time only, before doing the cross validations")
 do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = SMOTE_BEFORE_CROSS_VALIDATIONS, model_type = LOGISTIC_REGRESSION_MODEL)
 
-# Run with SMOTE data multiple times for each folds when doing the cross validations to prevent data leakage
-cat("\n[LogisticRegression] model with SMOTE data multiple times for each folds when doing the cross validations to prevent data leakage")
+# Run with SMOTE data when doing the cross validations to prevent data leakage
+cat("\n[Case 02] - Run model with SMOTE data when doing the cross validations to prevent data leakage")
 do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = SMOTE_IN_CROSS_VALIDATIONS, model_type = LOGISTIC_REGRESSION_MODEL)
 
 # Run without SMOTE data at all, to see how model perform with the original data
-cat("\n[LogisticRegression] model without SMOTE data at all, to see how model perform with the original data")
+cat("\n[Case 03] - Run model without SMOTE data at all, to see how model perform with the original data")
 do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = NO_SMOTE, model_type = LOGISTIC_REGRESSION_MODEL)
