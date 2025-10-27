@@ -294,17 +294,18 @@ get_top_features_by_correlation <- function(data) {
     head(10)
 
   # Get top feature names
-  top_features <- top_10_rows$variable
+  top_feature_column_names <- top_10_rows$variable
 
   cat("\n[Top Feature Selection] Selected top 10 features based on correlation with y_binary: \n")
-  print(top_features)
+  print(top_feature_column_names)
 
-  return(top_features)
+  return(top_feature_column_names)
 }
 
 # Get top features DF
-top_features_list <- get_top_features_by_correlation(bank_model_df_z)
-bank_model_df_z_top_feature <- bank_model_df_z %>% dplyr::select(all_of(top_features_list), "y_binary")
+top_feature_column_names <- get_top_features_by_correlation(bank_model_df_z)
+columns_to_keep <- c(top_feature_column_names, "y_binary")
+bank_model_df_z_top_feature <- bank_model_df_z[, columns_to_keep]
 
 # (Optional) write to CSV
 # write.csv(bank_model_df_z, "C:/Users/duybi/Downloads/Assignment/assignment-3/bank_model_df_z.csv", row.names = FALSE)
