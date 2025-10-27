@@ -531,12 +531,12 @@ apply_smote <- function(data, name) {
   class_counts_before <- table(data$y_binary)
   count_majority <- class_counts_before["0"] # Class "No"
   count_minority <- class_counts_before["1"] # Class "Yes"
-  inbalance_ratio_before_smote <- round(count_majority / count_minority, 2)
+  imbalance_ratio_before_smote <- round(count_majority / count_minority, 2)
 
   cat("Before SMOTE:\n")
   cat("  Class 0 (NO): ", count_majority, "\n")
   cat("  Class 1 (YES): ", count_minority, "\n")
-  cat("  Imbalance ratio (NO/YES):", inbalance_ratio_before_smote, ": 1\n")
+  cat("  Imbalance ratio (NO/YES):", imbalance_ratio_before_smote, ": 1\n")
 
   # 3. Separate features and target
   X <- data[, !names(data) %in% c("y_binary", "y_factor"), drop = FALSE]
@@ -555,13 +555,13 @@ apply_smote <- function(data, name) {
   class_counts_after <- table(data_smote$y_binary)
   count_majority_after <- class_counts_after["0"]
   count_minority_after <- class_counts_after["1"]
-  inbalance_ratio_after_smote <- round(count_majority_after / count_minority_after, 2)
+  imbalance_ratio_after_smote <- round(count_majority_after / count_minority_after, 2)
 
   cat("After SMOTE:\n")
   cat("  Class 0 (NO): ", count_majority_after, "\n")
   cat("  Class 1 (YES): ", count_minority_after, "\n")
   cat("  Total samples:", nrow(data_smote), "(was:", nrow(data), ")\n")
-  cat("  Imbalance ratio (NO/YES):", inbalance_ratio_after_smote, ": 1\n")
+  cat("  Imbalance ratio (NO/YES):", imbalance_ratio_after_smote, ": 1\n")
 
   return(as.data.frame(data_smote, check.names = FALSE))
 }
