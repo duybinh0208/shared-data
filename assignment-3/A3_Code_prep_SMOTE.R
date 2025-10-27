@@ -278,25 +278,10 @@ bank_model_df_z[pred_cols] <- lapply(bank_model_df_z[pred_cols], function(col) {
   as.numeric(scale(col))
 })
 
-# 2) Min–max scaling to [0,1] ---- MAYBE REDUNDANT --- REMOVE LATER
-rng_scale <- function(x) {
-  if (!is.numeric(x) || is_binary(x)) {
-    return(x)
-  } # Skip dummy 0/1
-  r <- range(x, na.rm = TRUE)
-  if (diff(r) == 0) {
-    return(rep(0, length(x)))
-  }
-  (x - r[1]) / (r[2] - r[1])
-}
-bank_model_df_mm <- bank_model_df
-bank_model_df_mm[pred_cols] <- lapply(bank_model_df_mm[pred_cols], rng_scale)
-
 message(
   "Model frames ready:",
   "\n  - bank_model_df (raw one-hot)",
-  "\n  - bank_model_df_z (z-score, no re-scaling of dummies)",
-  "\n  - bank_model_df_mm (min-max, no re-scaling of dummies)"
+  "\n  - bank_model_df_z (z-score, no re-scaling of dummies)"
 )
 
 get_top_features_by_correlation <- function(
@@ -345,7 +330,6 @@ bank_model_df_z_top_feature <- bank_model_df_z %>% dplyr::select(all_of(top_feat
 
 # (Optional) write to CSV
 # write.csv(bank_model_df_z, "C:/Users/duybi/Downloads/Assignment/assignment-3/bank_model_df_z.csv", row.names = FALSE)
-# write.csv(bank_model_df_mm, "C:/Users/duybi/Downloads/Assignment/assignment-3/bank_model_df_mm.csv", row.names = FALSE)
 
 # 3) VISUALS — 10 ggplot2 plots
 
