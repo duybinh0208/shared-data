@@ -569,11 +569,6 @@ plot_roc_with_thresholds <- function(
     name = "Unknown",
     color_curve = "#2E86C1",
     color_points = "red") {
-  # Validate input
-  if (missing(roc_obj) || !inherits(roc_obj, "roc")) {
-    stop("'roc_obj' must be a valid object from pROC::roc()")
-  }
-
   # Compute coordinates for selected thresholds
   coords_multi <- coords(
     roc_obj,
@@ -587,6 +582,7 @@ plot_roc_with_thresholds <- function(
   tpr_points <- coords_multi["sensitivity", ]
 
   # Plot ROC curve
+  dev.new() # To use a new window for each image
   plot(
     roc_obj,
     main = sprintf("ROC Curve with Thresholds for %s", name),
@@ -614,8 +610,6 @@ plot_roc_with_thresholds <- function(
   # Display coordinates summary
   cat("  Threshold coordinates: \n")
   print(round(coords_multi, 3))
-
-  invisible(coords_multi) # Return invisibly for further use if needed
 }
 
 perform_nn_cv_robust <- function(input_df,
