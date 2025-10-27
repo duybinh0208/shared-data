@@ -276,7 +276,7 @@ message(
 
 get_top_features_by_correlation <- function(data) {
   # 1. Exclude non-predictor columns (Target binary and Target factor)
-  excluded_cols = c("y_binary", "y_factor")
+  excluded_cols <- c("y_binary", "y_factor")
   X_data <- data[, !names(data) %in% excluded_cols, drop = FALSE]
 
   # Calculate correlation between all predictors and the target
@@ -294,17 +294,18 @@ get_top_features_by_correlation <- function(data) {
     head(10)
 
   # Get top feature names
-  top_features <- top_10_rows$variable
+  top_feature_column_names <- top_10_rows$variable
 
   cat("\n[Top Feature Selection] Selected top 10 features based on correlation with y_binary: \n")
-  print(top_features)
+  print(top_feature_column_names)
 
-  return(top_features)
+  return(top_feature_column_names)
 }
 
 # Get top features DF
-top_features_list <- get_top_features_by_correlation(bank_model_df_z)
-bank_model_df_z_top_feature <- bank_model_df_z %>% dplyr::select(all_of(top_features_list), "y_binary")
+top_feature_column_names <- get_top_features_by_correlation(bank_model_df_z)
+columns_to_keep <- c(top_feature_column_names, "y_binary")
+bank_model_df_z_top_feature <- bank_model_df_z[, columns_to_keep]
 
 # (Optional) write to CSV
 # write.csv(bank_model_df_z, "C:/Users/duybi/Downloads/Assignment/assignment-3/bank_model_df_z.csv", row.names = FALSE)
@@ -542,7 +543,7 @@ apply_smote <- function(data, name) {
   X <- as.data.frame(lapply(X, as.numeric))
   y <- as.numeric(data$y_binary)
 
-  # 4. Apply SMOTE with calculated dup_size
+  # 4. Apply SMOTE
   smote_result <- smotefamily::SMOTE(X = X, target = y, K = 5, dup_size = 0)
 
   # 5. Combine back together
@@ -599,11 +600,6 @@ plot_roc_with_thresholds <- function(
     name = "Unknown",
     color_curve = "#2E86C1",
     color_points = "red") {
-  # Validate input
-  if (missing(roc_obj) || !inherits(roc_obj, "roc")) {
-    stop("'roc_obj' must be a valid object from pROC::roc()")
-  }
-
   # Compute coordinates for selected thresholds
   coords_multi <- coords(
     roc_obj,
@@ -644,8 +640,6 @@ plot_roc_with_thresholds <- function(
   # Display coordinates summary
   cat("  Threshold coordinates: \n")
   print(round(coords_multi, 3))
-
-  invisible(coords_multi) # Return invisibly for further use if needed
 }
 
 # 6) Experiment with different model types: RandomForest, LogisticRegression
@@ -682,9 +676,6 @@ do_cross_validation_and_calcualate_auc <- function(source_df, data_name, smote_m
     # Use the original data, don't smote it
     df <- source_df
   }
-
-  # Fix illegal column names
-  names(df) <- make.names(names(df))
 
   # Create "y_factor" column to ensure the stratified sampling when using createFolds() function
   df$y_factor <- factor(ifelse(df$y_binary == 1, "yes", "no"), levels = c("no", "yes"))
