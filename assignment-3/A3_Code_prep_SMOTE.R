@@ -48,7 +48,7 @@ theme_set(custom_theme)
 
 # read.csv will NOT find files outside the working directory.
 
-bank_raw <- read.csv("C:/Users/duybi/Downloads/Assignment/assignment-3/bank-additional-full.csv",
+bank_raw <- read.csv("C:/Users/tamtr/Downloads/AI-Assignment-3/bank-additional-full.csv",
   sep = ";", stringsAsFactors = FALSE
 )
 
@@ -110,7 +110,7 @@ bank_pp <- bank_raw
 if (duplicates > 0) {
   # (optional) keep a copy of the duplicates for audit
   dup_rows <- bank_pp[duplicated(bank_pp) | duplicated(bank_pp, fromLast = TRUE), ]
-  write.csv(dup_rows, "C:/Users/duybi/Downloads/Assignment/assignment-3/duplicates_found.csv", row.names = FALSE)
+  write.csv(dup_rows, "C:/Users/tamtr/Downloads/AI-Assignment-3/duplicates_found.csv", row.names = FALSE)
 
   n_before <- nrow(bank_pp)
   bank_pp <- dplyr::distinct(bank_pp) # drop exact duplicates, keep first
@@ -197,7 +197,7 @@ data_clean <- bank_pp
 # (Optional) write to CSV
 # write.csv(
 #   data_clean,
-#   "C:/Users/duybi/Downloads/Assignment/assignment-3/data_clean.csv",
+#   "C:/Users/tamtr/Downloads/AI-Assignment-3/data_clean.csv",
 #   row.names = FALSE
 # )
 
@@ -308,7 +308,7 @@ columns_to_keep <- c(top_feature_column_names, "y_binary")
 bank_model_df_z_top_feature <- bank_model_df_z[, columns_to_keep]
 
 # (Optional) write to CSV
-# write.csv(bank_model_df_z, "C:/Users/duybi/Downloads/Assignment/assignment-3/bank_model_df_z.csv", row.names = FALSE)
+# write.csv(bank_model_df_z, "C:/Users/tamtr/Downloads/AI-Assignment-3/bank_model_df_z.csv", row.names = FALSE)
 
 # 3) VISUALS — 10 ggplot2 plots
 
