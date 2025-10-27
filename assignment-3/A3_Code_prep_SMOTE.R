@@ -577,6 +577,7 @@ visualize_data_before_and_after_smote <- function(data_before_smote, data_after_
     table(data_after_smote$y_binary)
   )) * 1.2
 
+  dev.new() # To use a new window for each image
   barplot(table(data_before_smote$y_binary),
     main = "Ratio Before SMOTE",
     names.arg = c("No", "Yes"),
@@ -584,6 +585,7 @@ visualize_data_before_and_after_smote <- function(data_before_smote, data_after_
     ylim = c(0, ylim_max)
   )
 
+  dev.new() # To use a new window for each image
   barplot(table(data_after_smote$y_binary),
     main = "Ratio after SMOTE",
     names.arg = c("No", "Yes"),
@@ -613,6 +615,7 @@ plot_roc_with_thresholds <- function(
   tpr_points <- coords_multi["sensitivity", ]
 
   # Plot ROC curve
+  dev.new() # To use a new window for each image
   plot(
     roc_obj,
     main = sprintf("ROC Curve with Thresholds for %s", name),
