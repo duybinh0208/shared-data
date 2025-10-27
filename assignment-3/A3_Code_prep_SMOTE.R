@@ -27,16 +27,6 @@ library(RColorBrewer)
 library(dplyr)
 library(neuralnet)
 
-# Define constants to have global settings
-SMOTE_BEFORE_CROSS_VALIDATIONS <- "before_cross_validaton"
-SMOTE_IN_CROSS_VALIDATIONS <- "in_cross_validaton"
-NO_SMOTE <- "no_smote"
-RANDOM_FOREST_MODEL <- "Random_Forest"
-LOGISTIC_REGRESSION_MODEL <- "Logistic_Regression"
-RANDOM_FOREST_NUM_TREES <- 500 # Config the "ntree" factor for RandomForest model, using "1" for testing quickly
-SMOTE_K <- 5 # Config the "K" factor for Smote function
-N_TOP_FEATURES <- 10 # To select top 10 correlation features
-
 
 # Custom theme (applies globally)
 custom_theme <- theme_minimal() +
@@ -278,74 +268,46 @@ bank_model_df_z[pred_cols] <- lapply(bank_model_df_z[pred_cols], function(col) {
   as.numeric(scale(col))
 })
 
-# 2) Min–max scaling to [0,1] ---- MAYBE REDUNDANT --- REMOVE LATER
-rng_scale <- function(x) {
-  if (!is.numeric(x) || is_binary(x)) {
-    return(x)
-  } # Skip dummy 0/1
-  r <- range(x, na.rm = TRUE)
-  if (diff(r) == 0) {
-    return(rep(0, length(x)))
-  }
-  (x - r[1]) / (r[2] - r[1])
-}
-bank_model_df_mm <- bank_model_df
-bank_model_df_mm[pred_cols] <- lapply(bank_model_df_mm[pred_cols], rng_scale)
-
 message(
   "Model frames ready:",
   "\n  - bank_model_df (raw one-hot)",
-  "\n  - bank_model_df_z (z-score, no re-scaling of dummies)",
-  "\n  - bank_model_df_mm (min-max, no re-scaling of dummies)"
+  "\n  - bank_model_df_z (z-score, no re-scaling of dummies)"
 )
 
-get_top_features_by_correlation <- function(
-    data,
-    target_col = "y_binary",
-    excluded_cols = c("y_binary", "y_factor"),
-    n_features = N_TOP_FEATURES) {
+get_top_features_by_correlation <- function(data) {
   # 1. Exclude non-predictor columns (Target binary and Target factor)
+  excluded_cols = c("y_binary", "y_factor")
   X_data <- data[, !names(data) %in% excluded_cols, drop = FALSE]
 
-  # Stop if no features are left
-  if (ncol(X_data) == 0) {
-    stop("No predictor columns found after excluding targets.")
-  }
-
   # Calculate correlation between all predictors and the target
-  # Assumes X_data columns are all numeric (as they are in bank_model_df_z)
-  # cor() returns a vector if X_data is a matrix/data.frame of one column
-  cors <- cor(X_data, data[[target_col]], use = "complete.obs")
+  correlations <- cor(X_data, data$y_binary, use = "complete.obs")
 
-  # Get the absolute correlation values (treating the result as a vector)
-  abs_cors <- abs(as.vector(cors))
+  # Create a data frame with correlation results
+  cor_df <- data.frame(
+    variable = rownames(correlations),
+    correlation = correlations[, 1]
+  ) %>%
+    arrange(desc(abs(correlation)))
 
-  # Reassign feature names to the correlation vector
-  # Handles both single-column and multi-column results from cor()
-  names(abs_cors) <- if (is.matrix(cors)) rownames(cors) else names(X_data)
+  # Get top 10 factors by absolute correlation
+  top_10_rows <- cor_df %>%
+    head(10)
 
-  # Sort and select Top N features
-  sorted_cors <- sort(abs_cors, decreasing = TRUE)
-  top_features <- names(sorted_cors)[1:min(n_features, length(sorted_cors))]
+  # Get top feature names
+  top_features <- top_10_rows$variable
 
-  cat(sprintf("\n[Top Feature Selection] Selected %d features based on correlation with %s: \n", length(top_features), target_col))
+  cat("\n[Top Feature Selection] Selected top 10 features based on correlation with y_binary: \n")
   print(top_features)
 
   return(top_features)
 }
 
 # Get top features DF
-top_features_list <- get_top_features_by_correlation(
-  data = bank_model_df_z,
-  target_col = "y_binary",
-  excluded_cols = c("y_binary", "y_factor")
-)
-# Create the filtered data frame (X_top + y_binary)
+top_features_list <- get_top_features_by_correlation(bank_model_df_z)
 bank_model_df_z_top_feature <- bank_model_df_z %>% dplyr::select(all_of(top_features_list), "y_binary")
 
 # (Optional) write to CSV
 # write.csv(bank_model_df_z, "C:/Users/duybi/Downloads/Assignment/assignment-3/bank_model_df_z.csv", row.names = FALSE)
-# write.csv(bank_model_df_mm, "C:/Users/duybi/Downloads/Assignment/assignment-3/bank_model_df_mm.csv", row.names = FALSE)
 
 # 3) VISUALS — 10 ggplot2 plots
 
@@ -581,7 +543,7 @@ apply_smote <- function(data, name) {
   y <- as.numeric(data$y_binary)
 
   # 4. Apply SMOTE with calculated dup_size
-  smote_result <- smotefamily::SMOTE(X = X, target = y, K = SMOTE_K, dup_size = 0)
+  smote_result <- smotefamily::SMOTE(X = X, target = y, K = 5, dup_size = 0)
 
   # 5. Combine back together
   data_smote <- smote_result$data
@@ -688,29 +650,29 @@ plot_roc_with_thresholds <- function(
 
 # 6) Experiment with different model types: RandomForest, LogisticRegression
 
-do_build_model <- function(train_data, model_type = RANDOM_FOREST_MODEL) {
-  if (model_type == RANDOM_FOREST_MODEL) {
+do_build_model <- function(train_data, model_type) {
+  if (model_type == "Random_Forest") {
     # Build Random Forest model for the "y_factor" target using all columns except "y_binary"
-    model <- randomForest(y_factor ~ . - y_binary, data = train_data, ntree = RANDOM_FOREST_NUM_TREES)
-  } else if (model_type == LOGISTIC_REGRESSION_MODEL) {
+    model <- randomForest(y_factor ~ . - y_binary, data = train_data, ntree = 500)
+  } else if (model_type == "Logistic_Regression") {
     # Build Logistic Regression model for the "y_factor" target using all columns except "y_binary"
     model <- glm(y_factor ~ . - y_binary, data = train_data, family = "binomial")
   }
   return(model)
 }
 
-do_predict_model <- function(model, test_data, model_type = RANDOM_FOREST_MODEL) {
+do_predict_model <- function(model, test_data, model_type) {
   # Predict probabilities instead of classes
-  if (model_type == RANDOM_FOREST_MODEL) {
+  if (model_type == "Random_Forest") {
     preds_prob <- predict(model, newdata = test_data, type = "prob")[, "yes"]
-  } else if (model_type == LOGISTIC_REGRESSION_MODEL) {
+  } else if (model_type == "Logistic_Regression") {
     preds_prob <- predict(model, newdata = test_data, type = "response")
   }
   return(preds_prob)
 }
 
-do_cross_validation_and_calcualate_auc <- function(source_df, data_name, smote_mode = NO_SMOTE, model_type = RANDOM_FOREST_MODEL) {
-  if (smote_mode == SMOTE_BEFORE_CROSS_VALIDATIONS) {
+do_cross_validation_and_calcualate_auc <- function(source_df, data_name, smote_mode, model_type) {
+  if (smote_mode == "before_cross_validaton") {
     # Apply SMOTE on the original data, before doing cross validations
     source_df_smote <- apply_smote(source_df, data_name)
     source_df_smote$y_factor <- factor(source_df_smote$y_binary, levels = c(0, 1), labels = c("no", "yes")) # Ensure "y_factor" after smote
@@ -745,7 +707,7 @@ do_cross_validation_and_calcualate_auc <- function(source_df, data_name, smote_m
     test_data <- df[folds[[i]], ]
 
     # Check if we need to smote train_data
-    if (smote_mode == SMOTE_IN_CROSS_VALIDATIONS) {
+    if (smote_mode == "in_cross_validaton") {
       # Apply smote on train_data only
       # In this case, the test_data should be preserved without SMOTE data to prevent data leakage
       train_data_smote <- apply_smote(train_data, "train_data")
@@ -802,23 +764,23 @@ cat("\n===================================================================\n")
 
 # Run with all data
 cat("\n[Case 01] - Run model with SMOTE data one time only, before doing the cross validations")
-do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = SMOTE_BEFORE_CROSS_VALIDATIONS, model_type = RANDOM_FOREST_MODEL)
+do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = "before_cross_validaton", model_type = "Random_Forest")
 
 cat("\n[Case 02] - Run model with SMOTE data when doing the cross validations to prevent data leakage")
-do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = SMOTE_IN_CROSS_VALIDATIONS, model_type = RANDOM_FOREST_MODEL)
+do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = "in_cross_validaton", model_type = "Random_Forest")
 
 cat("\n[Case 03] - Run model without SMOTE data at all, to see how model perform with the original data")
-do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = NO_SMOTE, model_type = RANDOM_FOREST_MODEL)
+do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = "no_smote", model_type = "Random_Forest")
 
 # Run with top features data
 cat("\n[Case 04] - Run model for top features with SMOTE data one time only, before doing the cross validations")
-do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z_top_feature, data_name = "bank_model_df_z_top_feature", smote_mode = SMOTE_BEFORE_CROSS_VALIDATIONS, model_type = RANDOM_FOREST_MODEL)
+do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z_top_feature, data_name = "bank_model_df_z_top_feature", smote_mode = "before_cross_validaton", model_type = "Random_Forest")
 
 cat("\n[Case 05] - Run model for top features with SMOTE data when doing the cross validations to prevent data leakage")
-do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z_top_feature, data_name = "bank_model_df_z_top_feature", smote_mode = SMOTE_IN_CROSS_VALIDATIONS, model_type = RANDOM_FOREST_MODEL)
+do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z_top_feature, data_name = "bank_model_df_z_top_feature", smote_mode = "in_cross_validaton", model_type = "Random_Forest")
 
 cat("\n[Case 06] - Run model for top features without SMOTE data at all, to see how model perform with the original data")
-do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z_top_feature, data_name = "bank_model_df_z_top_feature", smote_mode = NO_SMOTE, model_type = RANDOM_FOREST_MODEL)
+do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z_top_feature, data_name = "bank_model_df_z_top_feature", smote_mode = "no_smote", model_type = "Random_Forest")
 
 
 # Run cross validations with LogisticRegression model, also calculate ROC & AUC
@@ -828,22 +790,22 @@ cat("\n===================================================================\n")
 
 # Run with all data
 cat("\n[Case 01] - Run model with SMOTE data one time only, before doing the cross validations")
-do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = SMOTE_BEFORE_CROSS_VALIDATIONS, model_type = LOGISTIC_REGRESSION_MODEL)
+do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = "before_cross_validaton", model_type = "Logistic_Regression")
 
 cat("\n[Case 02] - Run model with SMOTE data when doing the cross validations to prevent data leakage")
-do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = SMOTE_IN_CROSS_VALIDATIONS, model_type = LOGISTIC_REGRESSION_MODEL)
+do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = "in_cross_validaton", model_type = "Logistic_Regression")
 
 cat("\n[Case 03] - Run model without SMOTE data at all, to see how model perform with the original data")
-do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = NO_SMOTE, model_type = LOGISTIC_REGRESSION_MODEL)
+do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z, data_name = "bank_model_df_z", smote_mode = "no_smote", model_type = "Logistic_Regression")
 
 # Run with top features data
 cat("\n[Case 04] - Run model for top features with SMOTE data one time only, before doing the cross validations")
-do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z_top_feature, data_name = "bank_model_df_z_top_feature", smote_mode = SMOTE_BEFORE_CROSS_VALIDATIONS, model_type = LOGISTIC_REGRESSION_MODEL)
+do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z_top_feature, data_name = "bank_model_df_z_top_feature", smote_mode = "before_cross_validaton", model_type = "Logistic_Regression")
 
 cat("\n[Case 05] - Run model for top features with SMOTE data when doing the cross validations to prevent data leakage")
-do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z_top_feature, data_name = "bank_model_df_z_top_feature", smote_mode = SMOTE_IN_CROSS_VALIDATIONS, model_type = LOGISTIC_REGRESSION_MODEL)
+do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z_top_feature, data_name = "bank_model_df_z_top_feature", smote_mode = "in_cross_validaton", model_type = "Logistic_Regression")
 
 cat("\n[Case 06] - Run model for top features without SMOTE data at all, to see how model perform with the original data")
-do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z_top_feature, data_name = "bank_model_df_z_top_feature", smote_mode = NO_SMOTE, model_type = LOGISTIC_REGRESSION_MODEL)
+do_cross_validation_and_calcualate_auc(source_df = bank_model_df_z_top_feature, data_name = "bank_model_df_z_top_feature", smote_mode = "no_smote", model_type = "Logistic_Regression")
 
 cat("\nDone\n")
