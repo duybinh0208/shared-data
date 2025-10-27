@@ -677,6 +677,9 @@ do_cross_validation_and_calcualate_auc <- function(source_df, data_name, smote_m
     df <- source_df
   }
 
+  # Fix illegal column names
+  names(df) <- make.names(names(df))
+
   # Create "y_factor" column to ensure the stratified sampling when using createFolds() function
   df$y_factor <- factor(ifelse(df$y_binary == 1, "yes", "no"), levels = c("no", "yes"))
 
