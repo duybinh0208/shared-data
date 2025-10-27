@@ -276,7 +276,7 @@ message(
 
 get_top_features_by_correlation <- function(data) {
   # 1. Exclude non-predictor columns (Target binary and Target factor)
-  excluded_cols = c("y_binary", "y_factor")
+  excluded_cols <- c("y_binary", "y_factor")
   X_data <- data[, !names(data) %in% excluded_cols, drop = FALSE]
 
   # Calculate correlation between all predictors and the target
@@ -543,7 +543,7 @@ apply_smote <- function(data, name) {
   X <- as.data.frame(lapply(X, as.numeric))
   y <- as.numeric(data$y_binary)
 
-  # 4. Apply SMOTE with calculated dup_size
+  # 4. Apply SMOTE
   smote_result <- smotefamily::SMOTE(X = X, target = y, K = 5, dup_size = 0)
 
   # 5. Combine back together
@@ -600,11 +600,6 @@ plot_roc_with_thresholds <- function(
     name = "Unknown",
     color_curve = "#2E86C1",
     color_points = "red") {
-  # Validate input
-  if (missing(roc_obj) || !inherits(roc_obj, "roc")) {
-    stop("'roc_obj' must be a valid object from pROC::roc()")
-  }
-
   # Compute coordinates for selected thresholds
   coords_multi <- coords(
     roc_obj,
@@ -645,8 +640,6 @@ plot_roc_with_thresholds <- function(
   # Display coordinates summary
   cat("  Threshold coordinates: \n")
   print(round(coords_multi, 3))
-
-  invisible(coords_multi) # Return invisibly for further use if needed
 }
 
 # 6) Experiment with different model types: RandomForest, LogisticRegression
@@ -683,9 +676,6 @@ do_cross_validation_and_calcualate_auc <- function(source_df, data_name, smote_m
     # Use the original data, don't smote it
     df <- source_df
   }
-
-  # Fix illegal column names
-  names(df) <- make.names(names(df))
 
   # Create "y_factor" column to ensure the stratified sampling when using createFolds() function
   df$y_factor <- factor(ifelse(df$y_binary == 1, "yes", "no"), levels = c("no", "yes"))
