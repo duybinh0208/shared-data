@@ -35,7 +35,6 @@ RANDOM_FOREST_MODEL <- "Random_Forest"
 LOGISTIC_REGRESSION_MODEL <- "Logistic_Regression"
 RANDOM_FOREST_NUM_TREES <- 500 # Config the "ntree" factor for RandomForest model, using "1" for testing quickly
 SMOTE_K <- 5 # Config the "K" factor for Smote function
-N_TOP_FEATURES <- 10 # To select top 10 correlation features
 
 
 # Custom theme (applies globally)
@@ -284,48 +283,36 @@ message(
   "\n  - bank_model_df_z (z-score, no re-scaling of dummies)"
 )
 
-get_top_features_by_correlation <- function(
-    data,
-    target_col = "y_binary",
-    excluded_cols = c("y_binary", "y_factor"),
-    n_features = N_TOP_FEATURES) {
+get_top_features_by_correlation <- function(data) {
   # 1. Exclude non-predictor columns (Target binary and Target factor)
+  excluded_cols = c("y_binary", "y_factor")
   X_data <- data[, !names(data) %in% excluded_cols, drop = FALSE]
 
-  # Stop if no features are left
-  if (ncol(X_data) == 0) {
-    stop("No predictor columns found after excluding targets.")
-  }
-
   # Calculate correlation between all predictors and the target
-  # Assumes X_data columns are all numeric (as they are in bank_model_df_z)
-  # cor() returns a vector if X_data is a matrix/data.frame of one column
-  cors <- cor(X_data, data[[target_col]], use = "complete.obs")
+  correlations <- cor(X_data, data$y_binary, use = "complete.obs")
 
-  # Get the absolute correlation values (treating the result as a vector)
-  abs_cors <- abs(as.vector(cors))
+  # Create a data frame with correlation results
+  cor_df <- data.frame(
+    variable = rownames(correlations),
+    correlation = correlations[, 1]
+  ) %>%
+    arrange(desc(abs(correlation)))
 
-  # Reassign feature names to the correlation vector
-  # Handles both single-column and multi-column results from cor()
-  names(abs_cors) <- if (is.matrix(cors)) rownames(cors) else names(X_data)
+  # Get top 10 factors by absolute correlation
+  top_10_rows <- cor_df %>%
+    head(10)
 
-  # Sort and select Top N features
-  sorted_cors <- sort(abs_cors, decreasing = TRUE)
-  top_features <- names(sorted_cors)[1:min(n_features, length(sorted_cors))]
+  # Get top feature names
+  top_features <- top_10_rows$variable
 
-  cat(sprintf("\n[Top Feature Selection] Selected %d features based on correlation with %s: \n", length(top_features), target_col))
+  cat("\n[Top Feature Selection] Selected top 10 features based on correlation with y_binary: \n")
   print(top_features)
 
   return(top_features)
 }
 
 # Get top features DF
-top_features_list <- get_top_features_by_correlation(
-  data = bank_model_df_z,
-  target_col = "y_binary",
-  excluded_cols = c("y_binary", "y_factor")
-)
-# Create the filtered data frame (X_top + y_binary)
+top_features_list <- get_top_features_by_correlation(bank_model_df_z)
 bank_model_df_z_top_feature <- bank_model_df_z %>% dplyr::select(all_of(top_features_list), "y_binary")
 
 # (Optional) write to CSV
