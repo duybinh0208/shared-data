@@ -556,10 +556,32 @@ cat("\n========================================")
 cat("\n NEURAL NETWORK")
 cat("\n========================================\n")
 
-get_top_features_by_correlation <- function(data, target_col = "y_binary", n_features = 10) {
-  cors <- cor(data[, setdiff(names(data), target_col)], data[[target_col]], use = "complete.obs")
-  abs_cors <- abs(cors[, 1])
-  names(sort(abs_cors, decreasing = TRUE)[1:n_features])
+get_top_features_by_correlation <- function(data) {
+  # 1. Exclude non-predictor columns (Target binary, Target factor, Redundant original columns due to feature engineering)
+  excluded_cols <- c("y_binary", "y_factor", "age", "campaign",  "emp.var.rate", "pdays", "previous")
+  X_data <- data[, !names(data) %in% excluded_cols, drop = FALSE]
+
+  # Calculate correlation between all predictors and the target
+  correlations <- cor(X_data, data$y_binary, use = "complete.obs")
+
+  # Create a data frame with correlation results
+  cor_df <- data.frame(
+    variable = rownames(correlations),
+    correlation = correlations[, 1]
+  ) %>%
+    arrange(desc(abs(correlation)))
+
+  # Get top 10 factors by absolute correlation
+  top_10_rows <- cor_df %>%
+    head(10)
+
+  # Get top feature names
+  top_feature_column_names <- top_10_rows$variable
+
+  cat("\n[Top Feature Selection] Selected top 10 features based on correlation with y_binary: \n")
+  print(top_feature_column_names)
+
+  return(top_feature_column_names)
 }
 
 # 5) Define a function to draw ROC curve with multiple threshholds
@@ -614,7 +636,6 @@ plot_roc_with_thresholds <- function(
 
 perform_nn_cv_robust <- function(input_df,
                                  method_name = "NN_CV_Robust",
-                                 n_features = 10,
                                  num_folds = 5,
                                  hidden = c(3),
                                  nn_stepmax = 5e6,
@@ -636,7 +657,7 @@ perform_nn_cv_robust <- function(input_df,
   }
   
   # 1) top-K features
-  top_features <- get_top_features_by_correlation(input_df, "y_binary", n_features)
+  top_features <- get_top_features_by_correlation(input_df)
   cat("Using features:", paste(top_features, collapse = ", "), "\n")
   
   df <- input_df[, c(top_features, "y_binary")]
@@ -781,10 +802,8 @@ cat("\n========================================")
 cat("\n TEST: 10 FEATURES, SMOTE & ORIGINAL")
 cat("\n========================================\n")
 
-nn_cv_smote <- perform_nn_cv_robust(bank_model_df_z_smote, method_name = "NN_SMOTE_10",
-                                    n_features = 10, num_folds = 5, hidden = c(3))
-nn_cv_orig  <- perform_nn_cv_robust(bank_model_df_z,        method_name = "NN_ORIG_10",
-                                    n_features = 10, num_folds = 5, hidden = c(3))
+nn_cv_smote <- perform_nn_cv_robust(bank_model_df_z_smote, method_name = "NN_SMOTE_10", num_folds = 5, hidden = c(3))
+nn_cv_orig  <- perform_nn_cv_robust(bank_model_df_z, method_name = "NN_ORIG_10", num_folds = 5, hidden = c(3))
 
 cat("\n========================================")
 cat("\n FINAL MODEL COMPARISON")
