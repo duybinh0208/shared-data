@@ -1,3 +1,133 @@
+    compute
+
+    y     n       pct
+1  no 36548 0.8873458
+2 yes  4640 0.1126542
+Class Imbalance (yes/no): 0.127
+# A tibble: 10 × 2
+   variable       skewness
+   <chr>             <dbl>
+ 1 pdays            -4.92
+ 2 campaign          4.76
+ 3 previous          3.83
+ 4 duration          3.26
+ 5 nr.employed      -1.04
+ 6 age               0.785
+ 7 emp.var.rate     -0.724
+ 8 euribor3m        -0.709
+ 9 cons.conf.idx     0.303
+10 cons.price.idx   -0.231
+# A tibble: 10 × 2
+   variable       outliers
+   <chr>             <int>
+ 1 previous           5625
+ 2 duration           2963
+ 3 campaign           2406
+ 4 pdays              1515
+ 5 age                 469
+ 6 cons.conf.idx       447
+ 7 emp.var.rate          0
+ 8 cons.price.idx        0
+ 9 euribor3m             0
+10 nr.employed           0
+data frame with 0 columns and 1 row
+  job marital education default housing loan
+1 330      80      1731    8597     990  990
+Number of duplicate rows: 12 
+Removed 12 duplicate rows. New size: 41176 
+Modeling frame ready. Dim: 41176 x 61
+Model frames ready:
+  - bank_model_df (raw one-hot)
+  - bank_model_df_z (z-score, no re-scaling of dummies)
+
+[Top Feature Selection] Selected top 10 features based on correlation with y_binary: 
+ [1] "nr.employed"                    "poutcomesuccess"
+ [3] "euribor3m"                      "days_since_contactRecent_Week"
+ [5] "economic_situationGrowing"      "has_previous_contactYes"
+ [7] "poutcomenonexistent"            "days_since_contactRecent_Month"
+ [9] "age_groupSenior"                "contacttelephone"
+
+===================================================================
+=======   EXPERIMENT RANDOM FOREST WITH CROSS VALIDATIONS   =======
+===================================================================
+
+[Case 01] - Run Random Forest model with SMOTE for the whole dataset, before doing the cross validations
+Start SMOTE processing for bank_model_df_z 
+Before SMOTE:
+  Class 0 (NO):  36537
+  Class 1 (YES):  4639
+  Imbalance ratio (NO/YES): 7.88 : 1
+After SMOTE:
+  Class 0 (NO):  36537
+  Class 1 (YES):  32473
+  Total samples: 69010 (was: 41176 )
+  Imbalance ratio (NO/YES): 1.13 : 1
+
+[Random_Forest] - RUN CROSS VALIDATION FOR case_01_fold_1
+[Random_Forest] - TEST RESULT FOR case_01_fold_1 with default threshold = 0.50 
+  Accuracy: 0.942 | Precision: 0.951 | Recall: 0.923 | F1: 0.937
+  AUC: 0.982 
+  Threshold coordinates: 
+  threshold accuracy precision recall (sensitivity)    f1 specificity
+1       0.2    0.911     0.860                0.968 0.911       0.860
+2       0.4    0.938     0.930                0.940 0.935       0.937
+3       0.5    0.942     0.951                0.924 0.937       0.957
+4       0.6    0.935     0.970                0.890 0.928       0.976
+5       0.8    0.877     0.990                0.747 0.851       0.993
+
+[Random_Forest] - RUN CROSS VALIDATION FOR case_01_fold_2
+[Random_Forest] - TEST RESULT FOR case_01_fold_2 with default threshold = 0.50 
+  Accuracy: 0.941 | Precision: 0.950 | Recall: 0.922 | F1: 0.936
+  AUC: 0.983
+  Threshold coordinates: 
+  threshold accuracy precision recall (sensitivity)    f1 specificity
+1       0.2    0.911     0.859                0.971 0.911       0.858
+2       0.4    0.939     0.928                0.943 0.936       0.935
+3       0.5    0.941     0.950                0.923 0.936       0.957
+4       0.6    0.936     0.969                0.893 0.929       0.975
+5       0.8    0.883     0.991                0.758 0.859       0.994
+
+[Random_Forest] - RUN CROSS VALIDATION FOR case_01_fold_3
+[Random_Forest] - TEST RESULT FOR case_01_fold_3 with default threshold = 0.50 
+  Accuracy: 0.937 | Precision: 0.948 | Recall: 0.917 | F1: 0.932
+  AUC: 0.981 
+  Threshold coordinates: 
+  threshold accuracy precision recall (sensitivity)    f1 specificity
+1       0.2    0.908     0.857                0.965 0.908       0.857
+2       0.4    0.933     0.922                0.936 0.929       0.930
+3       0.5    0.937     0.947                0.917 0.932       0.955
+4       0.6    0.934     0.965                0.892 0.927       0.971
+5       0.8    0.878     0.990                0.749 0.853       0.993
+
+[Random_Forest] - RUN CROSS VALIDATION FOR case_01_fold_4
+[Random_Forest] - TEST RESULT FOR case_01_fold_4 with default threshold = 0.50 
+  Accuracy: 0.938 | Precision: 0.946 | Recall: 0.922 | F1: 0.934
+  AUC: 0.981 
+  Threshold coordinates: 
+  threshold accuracy precision recall (sensitivity)    f1 specificity
+1       0.2    0.903     0.848                0.966 0.903       0.846
+2       0.4    0.934     0.923                0.937 0.930       0.931
+3       0.5    0.938     0.945                0.922 0.934       0.952
+4       0.6    0.935     0.966                0.894 0.929       0.972
+5       0.8    0.882     0.990                0.756 0.858       0.993
+
+[Random_Forest] - RUN CROSS VALIDATION FOR case_01_fold_5
+[Random_Forest] - TEST RESULT FOR case_01_fold_5 with default threshold = 0.50 
+  Accuracy: 0.937 | Precision: 0.944 | Recall: 0.921 | F1: 0.932
+  AUC: 0.981 
+  Threshold coordinates: 
+  threshold accuracy precision recall (sensitivity)    f1 specificity
+1       0.2    0.902     0.846                0.968 0.903       0.844
+2       0.4    0.932     0.919                0.939 0.929       0.926
+3       0.5    0.937     0.943                0.922 0.932       0.950
+4       0.6    0.934     0.964                0.894 0.927       0.970
+5       0.8    0.883     0.988                0.760 0.859       0.992
+
+[Random_Forest] - AVERAGE AUC ACROSS 5 FOLDS: 0.982 
+[Random_Forest] - STANDARD DEVIATION OF AUC: 0.001
+
+[Case 02] - Run Random Forest model with SMOTE for training data to prevent data leakage
+[Random_Forest] - RUN CROSS VALIDATION FOR case_02_fold_1
 Start SMOTE processing for train_data 
 Before SMOTE:
   Class 0 (NO):  29230
@@ -9,7 +139,7 @@ After SMOTE:
   Total samples: 55207 (was: 32941 )
   Imbalance ratio (NO/YES): 1.13 : 1
 
-[Random_Forest] - TEST RESULT FOR case_02_fold_1 with default threshold = 0.50 
+[Random_Forest] - TEST RESULT FOR case_02_fold_1 with default threshold = 0.50
   Accuracy: 0.891 | Precision: 0.524 | Recall: 0.350 | F1: 0.420
   AUC: 0.788 
   Threshold coordinates: 
