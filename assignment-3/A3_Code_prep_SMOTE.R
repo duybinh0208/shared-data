@@ -620,16 +620,25 @@ plot_roc_with_thresholds <- function(
   )
 
   # Compute coordinates for selected thresholds
-  coords_multi <- coords(
+  coords_data <- coords(
     roc_obj,
     x = thresholds,
     input = "threshold",
-    ret = c("specificity", "sensitivity", "threshold")
+    ret = c("threshold", "accuracy", "precision", "recall", "specificity", "tp", "fp", "fn")
   )
+
+  # Calculate F1-Score
+  coords_data$f1 <- (2 * coords_data$tp) / (2 * coords_data$tp + coords_data$fp + coords_data$fn)
+
+  # Rename the "recall" column
+  colnames(coords_data)[colnames(coords_data) == "recall"] <- "recall (sensitivity)"
+
+  # Select and reorder the final columns (optional, for cleaner output)
+  coords_data <- coords_data[, c("threshold", "accuracy", "precision", "recall (sensitivity)", "f1", "specificity")]
 
   # Display coordinates summary
   cat("  Threshold coordinates: \n")
-  print(round(coords_multi, 3))
+  print(round(coords_data, 3))
 }
 
 # 6) Experiment with different model types: RandomForest, LogisticRegression
@@ -733,7 +742,7 @@ do_cross_validation_and_calcualate_auc <- function(source_df, data_name, smote_m
     cat(sprintf("  AUC: %.3f \n", auc_value))
 
     # Plot ROC Curve for this fold with multiple thresholds
-    plot_roc_with_thresholds(roc_obj, thresholds = c(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9), name = sprintf("%s - %s", fold_name, model_type))
+    plot_roc_with_thresholds(roc_obj, thresholds = c(0.2, 0.4, 0.5, 0.6, 0.8), name = sprintf("%s - %s", fold_name, model_type))
   }
 
   # ---- Summary of ROC and AUC across folds ----
