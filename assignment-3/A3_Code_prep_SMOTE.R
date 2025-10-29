@@ -274,9 +274,9 @@ message(
   "\n  - bank_model_df_z (z-score, no re-scaling of dummies)"
 )
 
-get_top_features_by_correlation <- function(data) {
+get_correlation_df <- function(data) {
   # 1. Exclude non-predictor columns (Target binary, Target factor, Redundant original columns due to feature engineering)
-  excluded_cols <- c("y_binary", "y_factor", "age", "campaign",  "emp.var.rate", "pdays", "previous")
+  excluded_cols <- c("y_binary", "y_factor", "age", "campaign", "emp.var.rate", "pdays", "previous")
   X_data <- data[, !names(data) %in% excluded_cols, drop = FALSE]
 
   # Calculate correlation between all predictors and the target
@@ -288,6 +288,13 @@ get_top_features_by_correlation <- function(data) {
     correlation = correlations[, 1]
   ) %>%
     arrange(desc(abs(correlation)))
+
+  return(cor_df)
+}
+
+get_top_features_by_correlation <- function(data) {
+  # Create a data frame with correlation results
+  cor_df <- get_correlation_df(data)
 
   # Get top 10 factors by absolute correlation
   top_10_rows <- cor_df %>%
@@ -302,7 +309,11 @@ get_top_features_by_correlation <- function(data) {
   return(top_feature_column_names)
 }
 
-# Get top features DF
+# Get top factors correlation
+top_corr_factors <- get_correlation_df(bank_model_df_z) %>%
+  head(10)
+
+# Get top features data
 top_feature_column_names <- get_top_features_by_correlation(bank_model_df_z)
 columns_to_keep <- c(top_feature_column_names, "y_binary")
 bank_model_df_z_top_feature <- bank_model_df_z[, columns_to_keep]
@@ -489,30 +500,33 @@ p9 <- ggcorrplot::ggcorrplot(
 p9
 
 # P10: Quick feature importance (RF) — duration already absent in data_clean
-set.seed(42)
-rf_df <- data_clean %>%
-  dplyr::mutate(across(where(is.character), factor),
-    y = factor(y)
+p10 <- ggplot(top_corr_factors, aes(
+  x = reorder(variable, abs(correlation)),
+  y = correlation,
+  fill = correlation > 0
+)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  scale_fill_manual(
+    values = c("FALSE" = "coral", "TRUE" = "steelblue"),
+    labels = c("Negative", "Positive"),
+    name = "Correlation Type"
+  ) +
+  labs(
+    title = "Top 10 Factors Correlated with term deposit subscription",
+    x = "Variables",
+    y = "Correlation Coefficient",
+    subtitle = "Ordered by absolute correlation strength"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5)
+  ) +
+  geom_text(aes(label = round(correlation, 3)),
+    hjust = ifelse(top_corr_factors$correlation > 0, -0.1, 1.1),
+    size = 3.5
   )
-rf_sample <- rf_df[sample(nrow(rf_df), min(5000, nrow(rf_df))), ]
-rf_quick <- randomForest::randomForest(y ~ .,
-  data = rf_sample, ntree = 100,
-  importance = TRUE, na.action = na.omit
-)
-imp <- randomForest::importance(rf_quick)
-imp_df <- tibble::tibble(
-  variable = rownames(imp),
-  gini = imp[, "MeanDecreaseGini"]
-) %>%
-  dplyr::arrange(dplyr::desc(gini)) %>%
-  dplyr::slice_head(n = 15)
-
-p10 <- ggplot2::ggplot(imp_df, ggplot2::aes(stats::reorder(variable, gini), gini, fill = gini)) +
-  ggplot2::geom_col(width = 0.7) +
-  ggplot2::coord_flip() +
-  ggplot2::scale_fill_gradient(low = "#FFFFCC", high = "#006837") +
-  ggplot2::labs(title = "Feature Importance (Top 15, RF on data_clean)", x = "Feature", y = "Gini") +
-  ggplot2::theme(legend.position = "none")
 p10
 
 # Layout (optional): combine or print individually
@@ -602,7 +616,6 @@ plot_roc_with_thresholds <- function(
     name = "Unknown",
     color_curve = "#2E86C1",
     color_points = "red") {
-
   # Plot ROC curve
   dev.new() # To use a new window for each image
   plot(
