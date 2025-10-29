@@ -602,17 +602,6 @@ plot_roc_with_thresholds <- function(
     name = "Unknown",
     color_curve = "#2E86C1",
     color_points = "red") {
-  # Compute coordinates for selected thresholds
-  coords_multi <- coords(
-    roc_obj,
-    x = thresholds,
-    input = "threshold",
-    ret = c("specificity", "sensitivity", "threshold")
-  )
-
-  # Convert Specificity -> FPR (False Positive Rate)
-  fpr_points <- 1 - coords_multi["specificity", ]
-  tpr_points <- coords_multi["sensitivity", ]
 
   # Plot ROC curve
   dev.new() # To use a new window for each image
@@ -626,18 +615,16 @@ plot_roc_with_thresholds <- function(
     ylab = "Sensitivity (True Positive Rate, TPR)",
     print.thres = "best",
     print.thres.best.method = "youden",
-    print.thres.cex = 0.8
+    print.thres.cex = 0.8,
+    print.thres.pattern = "Best Threshold: %.3f (Specificity=%.3f, Sensitivity=%.3f)"
   )
-  abline(a = 0, b = 1, lty = 2, col = "gray")
 
-  # Add threshold points
-  points(fpr_points, tpr_points, col = color_points, pch = 19, cex = 1.3)
-
-  # Label thresholds
-  text(
-    fpr_points, tpr_points,
-    labels = paste0("t=", thresholds),
-    pos = 4, cex = 0.8, col = color_points
+  # Compute coordinates for selected thresholds
+  coords_multi <- coords(
+    roc_obj,
+    x = thresholds,
+    input = "threshold",
+    ret = c("specificity", "sensitivity", "threshold")
   )
 
   # Display coordinates summary
